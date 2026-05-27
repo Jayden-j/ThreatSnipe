@@ -57,7 +57,7 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-border bg-sidebar">
       {/* Branding */}
-      <div className="flex items-center gap-2 border-b border-border px-6 py-5">
+      <div className="flex items-center gap-2 border-b border-border px-6 h-14">
         <Shield className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold tracking-tight text-foreground">
           Centry

@@ -3,7 +3,8 @@
   import { JetBrains_Mono } from "next/font/google";
   import "./globals.css";
   import { Sidebar } from "@/components/sidebar";
-  import { Shield } from "lucide-react";
+  import { PageTitle } from "@/components/page-title";
+  import { TopbarActions } from "@/components/topbar-actions";
 
   const antic = Antic({ 
     weight: '400',
@@ -31,12 +32,10 @@
 >
         <body className="min-h-full bg-background text-foreground">
           <Sidebar />
-          <div className="min-h-screen pl-60">
-            <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <Shield className="h-5 w-5 text-primary" />
-              <span className="text-sm font-semibold text-foreground">
-                Centry
-              </span>
+          <div className="min-h-screen ml-60">
+            <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <PageTitle />
+              <TopbarActions />
             </header>
             <main className="p-6">{children}</main>
           </div>

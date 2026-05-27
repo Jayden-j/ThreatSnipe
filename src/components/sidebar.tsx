@@ -13,6 +13,7 @@ import {
   Shield,
   LogOut,
   Globe,
+  ScanLine,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/lookup", label: "IP Lookup", icon: Search },
   { href: "/domain", label: "Domain Lookup", icon: Globe },
+  { href: "/ports", label: "Port Scanner", icon: ScanLine },
   { href: "/history", label: "Scan History", icon: History },
   { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/settings", label: "Settings", icon: Settings },

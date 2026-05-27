@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { ShieldAlert, AlertTriangle, FileWarning } from "lucide-react";
+import { ShieldAlert, AlertTriangle, FileWarning, Globe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 type ThreatLevel = "CLEAN" | "SUSPICIOUS" | "THREAT";
@@ -16,6 +17,20 @@ interface Scan {
   total_reports: number;
   last_reported: string | null;
   threat_level: ThreatLevel;
+  created_at: string;
+}
+
+interface DomainScan {
+  id: string;
+  domain: string;
+  malicious: number;
+  suspicious: number;
+  harmless: number;
+  undetected: number;
+  reputation: number;
+  categories: string[];
+  last_analysis_date: string;
+  verdict: "CLEAN" | "SUSPICIOUS" | "MALICIOUS";
   created_at: string;
 }
 
@@ -69,24 +84,165 @@ export default async function AlertsPage() {
   const alerts = (scans ?? []) as Scan[];
   const alertCount = alerts.length;
 
+  // Fetch malicious domain scans
+  const { data: domainScans } = await supabase
+    .from("domain_scans")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("verdict", "MALICIOUS")
+    .order("created_at", { ascending: false });
+
+  const maliciousDomains = (domainScans ?? []) as DomainScan[];
+  const hasMaliciousDomains = maliciousDomains.length > 0;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
           <ShieldAlert className="h-6 w-6 text-primary" />
           Alerts
-          {alertCount > 0 && (
+          {(alertCount + maliciousDomains.length) > 0 && (
             <span className="ml-2 rounded-md bg-red-500/20 px-2.5 py-0.5 text-sm font-semibold text-red-400 border border-red-500/30">
-              {alertCount}
+              {alertCount + maliciousDomains.length}
             </span>
           )}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          High-risk IPs flagged from your scan history.
+          High-risk IPs and domains flagged from your scans.
         </p>
       </div>
 
-      {alertCount === 0 ? (
+      {/* Threat IPs Section */}
+      {alertCount > 0 && (
+        <>
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <ShieldAlert className="h-5 w-5 text-red-500" />
+              Threat IPs
+            </h2>
+          </div>
+          <div className="space-y-4">
+            {alerts.map((alert) => (
+              <Card
+                key={alert.id}
+                className="border-l-4 border-l-red-500 border-border bg-zinc-900"
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+                      <div>
+                        <p className="font-mono text-lg font-semibold text-foreground">
+                          {alert.ip_address}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                          <span>
+                            Country: <span className="text-foreground">{alert.country}</span>
+                          </span>
+                          <span>
+                            ISP: <span className="text-foreground">{alert.isp}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-lg font-bold text-red-500">
+                      {alert.abuse_score}/100
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <FileWarning className="h-4 w-4" />
+                      {alert.total_reports} report{alert.total_reports === 1 ? "" : "s"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Last reported: {formatDate(alert.last_reported)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Scanned {getRelativeTime(alert.created_at)}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <Link href={`/lookup?ip=${alert.ip_address}`}>
+                      <Button variant="outline" size="sm">
+                        Re-scan
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Malicious Domains Section */}
+      {hasMaliciousDomains && (
+        <>
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Globe className="h-5 w-5 text-red-500" />
+              Malicious Domains
+            </h2>
+          </div>
+          <div className="space-y-4">
+            {maliciousDomains.map((scan) => (
+              <Card
+                key={scan.id}
+                className="border-l-4 border-l-red-500 border-border bg-zinc-900"
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+                      <div>
+                        <p className="font-mono text-lg font-semibold text-foreground">
+                          {scan.domain}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            Malicious: <span className="font-semibold text-red-500">{scan.malicious}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            Suspicious: <span className="font-semibold text-yellow-500">{scan.suspicious}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="border-red-500/50 bg-red-500/10 text-red-500"
+                    >
+                      MALICIOUS
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                    <span className="text-muted-foreground">
+                      Last analysis: {scan.last_analysis_date}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Scanned {getRelativeTime(scan.created_at)}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <Link href={`/domain?domain=${scan.domain}`}>
+                      <Button variant="outline" size="sm">
+                        Re-scan
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Empty State */}
+      {alertCount === 0 && !hasMaliciousDomains && (
         <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
             <svg
@@ -107,62 +263,8 @@ export default async function AlertsPage() {
             No threats detected
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            All your scanned IPs are clean or low-risk.
+            All your scanned IPs and domains are clean or low-risk.
           </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {alerts.map((alert) => (
-            <Card
-              key={alert.id}
-              className="border-l-4 border-l-red-500 border-border bg-zinc-900"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
-                    <div>
-                      <p className="font-mono text-lg font-semibold text-foreground">
-                        {alert.ip_address}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                        <span>
-                          Country: <span className="text-foreground">{alert.country}</span>
-                        </span>
-                        <span>
-                          ISP: <span className="text-foreground">{alert.isp}</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-lg font-bold text-red-500">
-                    {alert.abuse_score}/100
-                  </p>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <FileWarning className="h-4 w-4" />
-                    {alert.total_reports} report{alert.total_reports === 1 ? "" : "s"}
-                  </span>
-                  <span className="text-muted-foreground">
-                    Last reported: {formatDate(alert.last_reported)}
-                  </span>
-                  <span className="text-muted-foreground">
-                    Scanned {getRelativeTime(alert.created_at)}
-                  </span>
-                </div>
-
-                <div className="mt-4 flex justify-end">
-                  <Link href={`/lookup?ip=${alert.ip_address}`}>
-                    <Button variant="outline" size="sm">
-                      Re-scan
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
         </div>
       )}
     </div>

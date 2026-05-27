@@ -32,16 +32,16 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Protected routes - redirect unauthenticated users to /login
-  if (!user && (pathname === '/' || pathname.startsWith('/lookup') || pathname.startsWith('/history') || pathname.startsWith('/domain') || pathname.startsWith('/ports'))) {
+  if (!user && (pathname === '/dashboard' || pathname.startsWith('/lookup') || pathname.startsWith('/history') || pathname.startsWith('/domain') || pathname.startsWith('/ports'))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // If authenticated user visits login or register, redirect to /
+  // If authenticated user visits login or register, redirect to /dashboard
   if (user && (pathname === '/login' || pathname === '/register')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 

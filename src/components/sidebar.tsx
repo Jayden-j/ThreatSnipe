@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Search,
@@ -18,7 +19,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/lookup", label: "IP Lookup", icon: Search },
   { href: "/domain", label: "Domain Lookup", icon: Globe },
   { href: "/ports", label: "Port Scanner", icon: ScanLine },
@@ -58,11 +59,11 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-border bg-sidebar">
       {/* Branding */}
       <div className="flex items-center gap-2 border-b border-border px-6 h-14">
-        <Shield className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold tracking-tight text-foreground">
-          Centry
-        </span>
-      </div>
+  <Image src="/logo.png" alt="Centry" width={28} height={28} className="rounded-sm" />
+  <span className="text-lg font-bold tracking-tight text-foreground">
+    Centry
+  </span>
+</div>
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-1 px-3 py-4">

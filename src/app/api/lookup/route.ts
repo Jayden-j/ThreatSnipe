@@ -131,6 +131,26 @@ export async function GET(request: NextRequest) {
           last_reported: data.data.lastReportedAt,
           threat_level: threatLevel,
         });
+
+        // Fire webhook notification for THREAT scans (non-blocking)
+        if (threatLevel === "THREAT") {
+          const origin = request.headers.get("origin") || request.headers.get("host") || "http://localhost:3000";
+          const baseUrl = origin.startsWith("http") ? origin : `https://${origin}`;
+          fetch(`${baseUrl}/api/notify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ip: data.data.ipAddress,
+              abuseScore: abuseScore,
+              country: data.data.countryCode,
+              isp: data.data.isp,
+              threatLevel: threatLevel,
+              userId: user.id,
+            }),
+          }).catch((err) => {
+            console.error("Failed to send notification:", err);
+          });
+        }
       }
     } catch (dbError) {
       // Log but don't fail the request if scan save fails

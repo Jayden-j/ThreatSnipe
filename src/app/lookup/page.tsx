@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,11 +17,40 @@ interface LookupResult {
   lastReported: string | null;
 }
 
-export default function LookupPage() {
+function LookupForm() {
+  const searchParams = useSearchParams();
   const [ipInput, setIpInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<LookupResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const autoTriggered = useRef(false);
+
+  useEffect(() => {
+    const ip = searchParams.get("ip");
+    if (ip && !autoTriggered.current) {
+      autoTriggered.current = true;
+      setIpInput(ip);
+      // Auto-trigger the scan
+      setLoading(true);
+      fetch(`/api/lookup?ip=${encodeURIComponent(ip)}`)
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.error || "Lookup failed");
+          }
+          const data: LookupResult = await response.json();
+          setResult(data);
+        })
+        .catch((err) => {
+          setError(
+            err instanceof Error ? err.message : "An unexpected error occurred"
+          );
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,5 +145,27 @@ export default function LookupPage() {
 
       {result && !loading && <IpResultCard data={result} />}
     </div>
+  );
+}
+
+export default function LookupPage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">IP Lookup</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Check the reputation of an IP address using AbuseIPDB.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <div className="h-10 w-full animate-pulse rounded bg-secondary" />
+          <div className="h-8 w-48 animate-pulse rounded bg-secondary" />
+          <div className="h-24 animate-pulse rounded-lg bg-secondary" />
+        </div>
+      </div>
+    }>
+      <LookupForm />
+    </Suspense>
   );
 }

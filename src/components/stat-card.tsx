@@ -7,6 +7,7 @@ interface StatCardProps {
   label: string;
   value: number | string;
   variant?: "default" | "threat" | "safe";
+  className?: string;
 }
 
 export function StatCard({
@@ -14,6 +15,7 @@ export function StatCard({
   label,
   value,
   variant = "default",
+  className,
 }: StatCardProps) {
   const glowColor =
     variant === "threat"
@@ -26,7 +28,8 @@ export function StatCard({
     <Card
       className={cn(
         "group border-border bg-card transition-all duration-300",
-        glowColor
+        glowColor,
+        className
       )}
     >
       <CardContent className="flex items-center gap-4 p-6">

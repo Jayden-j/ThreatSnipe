@@ -76,6 +76,7 @@ export default async function Home() {
           label="Threats Detected"
           value={threatsDetected}
           variant="threat"
+          className={threatsDetected > 0 ? "shadow-red-500/20 shadow-lg" : ""}
         />
         <StatCard
           icon={ShieldCheck}

@@ -2,6 +2,8 @@ import { StatCard } from "@/components/stat-card";
 import { Shield, Search, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { ScansOverTime } from "@/components/charts/scans-over-time";
+import { ThreatBreakdown } from "@/components/charts/threat-breakdown";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -13,12 +15,45 @@ export default async function Home() {
 
   const { data: scans } = await supabase
     .from("scans")
-    .select("threat_level")
+    .select("threat_level, created_at")
     .eq("user_id", user.id);
 
   const totalScans = scans?.length ?? 0;
   const threatsDetected = scans?.filter((s) => s.threat_level === "THREAT").length ?? 0;
+  const suspiciousCount = scans?.filter((s) => s.threat_level === "SUSPICIOUS").length ?? 0;
   const cleanIps = scans?.filter((s) => s.threat_level === "CLEAN").length ?? 0;
+
+  // Build scans-over-time data (last 7 days)
+  const scansOverTime = (() => {
+    if (!scans || scans.length === 0) {
+      // Return 7 days with zero counts
+      const empty: { date: string; count: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        empty.push({ date: d.toISOString().split("T")[0], count: 0 });
+      }
+      return empty;
+    }
+
+    // Group by date
+    const grouped: Record<string, number> = {};
+    for (const s of scans) {
+      const date = new Date(s.created_at).toISOString().split("T")[0];
+      grouped[date] = (grouped[date] || 0) + 1;
+    }
+
+    // Fill in last 7 days
+    const result: { date: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      result.push({ date: dateStr, count: grouped[dateStr] || 0 });
+    }
+
+    return result;
+  })();
 
   return (
     <div className="space-y-6">
@@ -57,6 +92,15 @@ export default async function Home() {
           </p>
         </div>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ScansOverTime data={scansOverTime} />
+        <ThreatBreakdown
+          clean={cleanIps}
+          suspicious={suspiciousCount}
+          threat={threatsDetected}
+        />
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 interface AbuseIPDBResponse {
   data?: {
@@ -84,14 +85,59 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    // Format the response
+    const result = {
       ip: data.data.ipAddress,
       abuseScore: data.data.abuseConfidenceScore,
       country: data.data.countryCode,
       isp: data.data.isp,
       totalReports: data.data.totalReports,
       lastReported: data.data.lastReportedAt,
-    });
+    };
+
+    // Save scan to Supabase if user is authenticated
+    try {
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll();
+            },
+            setAll() {
+              // Not needed in API route context
+            },
+          },
+        }
+      );
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const abuseScore = data.data.abuseConfidenceScore;
+        const threatLevel =
+          abuseScore < 15 ? "CLEAN" :
+          abuseScore <= 50 ? "SUSPICIOUS" :
+          "THREAT";
+
+        await supabase.from("scans").insert({
+          user_id: user.id,
+          ip_address: data.data.ipAddress,
+          abuse_score: abuseScore,
+          country: data.data.countryCode,
+          isp: data.data.isp,
+          total_reports: data.data.totalReports,
+          last_reported: data.data.lastReportedAt,
+          threat_level: threatLevel,
+        });
+      }
+    } catch (dbError) {
+      // Log but don't fail the request if scan save fails
+      console.error("Failed to save scan to database:", dbError);
+    }
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("AbuseIPDB lookup error:", error);
     return NextResponse.json(

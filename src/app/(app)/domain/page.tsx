@@ -13,9 +13,9 @@ import {
   AlertCircle,
   Search,
   Clock,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 interface DomainResult {
   domain: string;
@@ -28,13 +28,6 @@ interface DomainResult {
   lastAnalysisDate: string;
   verdict: "CLEAN" | "SUSPICIOUS" | "MALICIOUS";
 }
-
-const PIE_COLORS = {
-  malicious: "#ef4444",
-  suspicious: "#eab308",
-  harmless: "#22c55e",
-  undetected: "#6b7280",
-};
 
 function getVerdictBadge(verdict: DomainResult["verdict"]) {
   switch (verdict) {
@@ -149,19 +142,13 @@ function DomainForm() {
     }
   };
 
-  const pieData = result
-    ? [
-        { name: "Malicious", value: result.malicious, color: PIE_COLORS.malicious },
-        { name: "Suspicious", value: result.suspicious, color: PIE_COLORS.suspicious },
-        { name: "Harmless", value: result.harmless, color: PIE_COLORS.harmless },
-        { name: "Undetected", value: result.undetected, color: PIE_COLORS.undetected },
-      ].filter((item) => item.value > 0)
-    : [];
-
   const totalVendors = result
     ? result.malicious + result.suspicious + result.harmless + result.undetected
     : 0;
   const flaggedCount = result ? result.malicious + result.suspicious : 0;
+  const vtUrl = result
+    ? `https://www.virustotal.com/gui/domain/${result.domain}`
+    : "#";
 
   return (
     <div className="space-y-6">
@@ -227,7 +214,7 @@ function DomainForm() {
         <Card className="border-border bg-card">
           <CardContent className="p-6">
             {/* Header with domain, verdict, and reputation score */}
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-xl font-semibold text-foreground">
                   {result.domain}
@@ -250,67 +237,35 @@ function DomainForm() {
               </div>
             </div>
 
-            {/* Pie chart + Stats list */}
-            <div className="mb-6 grid grid-cols-2 gap-6">
-              {/* Left: Donut chart */}
-              <div className="flex items-center justify-center">
-                {pieData.length > 0 ? (
-                  <div className="h-[200px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex h-[200px] items-center justify-center">
-                    <p className="text-sm text-muted-foreground">No data</p>
-                  </div>
-                )}
+            {/* Stats in a 2x2 grid */}
+            <div className="mb-6 grid grid-cols-2 gap-3">
+              <div className="flex items-center justify-between rounded-md border border-red-500/20 bg-red-500/5 px-4 py-3">
+                <span className="flex items-center gap-2 text-sm">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                  <span className="text-muted-foreground">Malicious</span>
+                </span>
+                <span className="text-lg font-bold text-red-500">{result.malicious}</span>
               </div>
-
-              {/* Right: Stats list */}
-              <div className="flex flex-col justify-center gap-3">
-                <div className="flex items-center justify-between rounded-md border border-red-500/20 bg-red-500/5 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                    <span className="text-muted-foreground">Malicious</span>
-                  </span>
-                  <span className="text-lg font-bold text-red-500">{result.malicious}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-md border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
-                    <span className="text-muted-foreground">Suspicious</span>
-                  </span>
-                  <span className="text-lg font-bold text-yellow-500">{result.suspicious}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-md border border-green-500/20 bg-green-500/5 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-                    <span className="text-muted-foreground">Harmless</span>
-                  </span>
-                  <span className="text-lg font-bold text-green-500">{result.harmless}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-md border border-border bg-muted px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="h-2.5 w-2.5 rounded-full bg-gray-400" />
-                    <span className="text-muted-foreground">Undetected</span>
-                  </span>
-                  <span className="text-lg font-bold text-muted-foreground">{result.undetected}</span>
-                </div>
+              <div className="flex items-center justify-between rounded-md border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+                <span className="flex items-center gap-2 text-sm">
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                  <span className="text-muted-foreground">Suspicious</span>
+                </span>
+                <span className="text-lg font-bold text-yellow-500">{result.suspicious}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-green-500/20 bg-green-500/5 px-4 py-3">
+                <span className="flex items-center gap-2 text-sm">
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                  <span className="text-muted-foreground">Harmless</span>
+                </span>
+                <span className="text-lg font-bold text-green-500">{result.harmless}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted px-4 py-3">
+                <span className="flex items-center gap-2 text-sm">
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-400" />
+                  <span className="text-muted-foreground">Undetected</span>
+                </span>
+                <span className="text-lg font-bold text-muted-foreground">{result.undetected}</span>
               </div>
             </div>
 
@@ -328,10 +283,21 @@ function DomainForm() {
               </div>
             )}
 
-            {/* Last Analysis Date */}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" />
-              Last analysis: {result.lastAnalysisDate}
+            {/* Bottom row: date left, VT link right */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                Last analysis: {result.lastAnalysisDate}
+              </div>
+              <a
+                href={vtUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              >
+                <ExternalLink className="h-3 w-3" />
+                VirusTotal
+              </a>
             </div>
           </CardContent>
         </Card>

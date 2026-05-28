@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Globe, Building2, FileWarning, Calendar, Shield } from "lucide-react";
-import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from "recharts";
+import { Globe, Building2, FileWarning, Calendar } from "lucide-react";
 
 interface IpResultData {
   ip: string;
@@ -77,12 +76,6 @@ function getScoreColor(score: number): string {
   return "text-red-500";
 }
 
-function getScoreHex(score: number): string {
-  if (score < 15) return "#22c55e";
-  if (score <= 50) return "#eab308";
-  return "#ef4444";
-}
-
 function getScoreBg(score: number): string {
   if (score < 15) return "bg-green-500/10 border-green-500/20";
   if (score <= 50) return "bg-yellow-500/10 border-yellow-500/20";
@@ -112,13 +105,10 @@ interface IpResultCardProps {
 export function IpResultCard({ data }: IpResultCardProps) {
   const badge = getThreatBadge(data.abuseScore);
   const scoreColor = getScoreColor(data.abuseScore);
-  const scoreHex = getScoreHex(data.abuseScore);
   const scoreBg = getScoreBg(data.abuseScore);
   const progressColor = getProgressColor(data.abuseScore);
 
   const countryInfo = COUNTRY_NAMES[data.country] ?? { name: data.country, flag: "🌐" };
-
-  const radialData = [{ name: "Abuse Score", value: data.abuseScore, fill: scoreHex }];
 
   const badgeClasses = cn(
     "px-4 py-1.5 text-sm font-semibold",
@@ -163,49 +153,6 @@ export function IpResultCard({ data }: IpResultCardProps) {
             </p>
           )}
         </div>
-
-        {/* Threat Score Radial Chart */}
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Shield className="h-4 w-4" />
-              Threat Score
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center">
-              <div className="h-[160px] w-[160px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadialBarChart
-                    innerRadius="65%"
-                    outerRadius="85%"
-                    startAngle={90}
-                    endAngle={-270}
-                    data={radialData}
-                  >
-                    <PolarAngleAxis
-                      type="number"
-                      domain={[0, 100]}
-                      tick={false}
-                      axisLine={false}
-                    />
-                    <RadialBar
-                      background
-                      dataKey="value"
-                      cornerRadius={10}
-                    />
-                  </RadialBarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="ml-4">
-                <p className={cn("text-4xl font-bold", scoreColor)}>
-                  {data.abuseScore}
-                </p>
-                <p className="text-xs text-muted-foreground">out of 100</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Info cards grid */}
         <div className="grid grid-cols-2 gap-3">

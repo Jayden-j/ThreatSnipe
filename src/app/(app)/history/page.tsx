@@ -362,7 +362,7 @@ function ScanHistoryRow({ entry, isExpanded, onToggle }: ScanHistoryRowProps) {
       gsap.to(contentRef.current, {
         maxHeight: 0,
         opacity: 0,
-        duration: 0.70,
+        duration: 0.65,
         ease: "power2.in",
       });
       gsap.to(chevronRef.current, {

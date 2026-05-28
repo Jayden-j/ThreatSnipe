@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${antic.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
+      style={{ fontSize: "115%" }}
     >
       <body className="min-h-full bg-background text-foreground">
         {children}

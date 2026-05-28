@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   LayoutDashboard,
   Search,
   History,
-  Bell,
   Settings,
   Shield,
   LogOut,
@@ -24,29 +22,12 @@ const navItems = [
   { href: "/domain", label: "Domain Lookup", icon: Globe },
   { href: "/ports", label: "Port Scanner", icon: ScanLine },
   { href: "/history", label: "Scan History", icon: History },
-  { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [alertCount, setAlertCount] = useState(0);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from("scans")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("threat_level", "THREAT")
-        .then(({ count }) => {
-          setAlertCount(count ?? 0);
-        });
-    });
-  }, []);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -84,11 +65,6 @@ export function Sidebar() {
             >
               <Icon className="h-4 w-4" />
               <span className="flex-1">{item.label}</span>
-              {item.href === "/alerts" && alertCount > 0 && (
-                <span className="rounded-md bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 border border-red-500/30">
-                  {alertCount}
-                </span>
-              )}
             </Link>
           );
         })}

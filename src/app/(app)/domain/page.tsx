@@ -11,11 +11,11 @@ import {
   Loader2,
   Globe,
   AlertCircle,
-  ShieldAlert,
-  AlertTriangle,
   Search,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 interface DomainResult {
   domain: string;
@@ -29,13 +29,20 @@ interface DomainResult {
   verdict: "CLEAN" | "SUSPICIOUS" | "MALICIOUS";
 }
 
+const PIE_COLORS = {
+  malicious: "#ef4444",
+  suspicious: "#eab308",
+  harmless: "#22c55e",
+  undetected: "#6b7280",
+};
+
 function getVerdictBadge(verdict: DomainResult["verdict"]) {
   switch (verdict) {
     case "CLEAN":
       return (
         <Badge
           variant="outline"
-          className="border-green-500/50 bg-green-500/10 text-green-500"
+          className="border-green-500/50 bg-green-500/10 text-green-500 px-4 py-1.5 text-sm font-semibold"
         >
           CLEAN
         </Badge>
@@ -44,7 +51,7 @@ function getVerdictBadge(verdict: DomainResult["verdict"]) {
       return (
         <Badge
           variant="outline"
-          className="border-yellow-500/50 bg-yellow-500/10 text-yellow-500"
+          className="border-yellow-500/50 bg-yellow-500/10 text-yellow-500 px-4 py-1.5 text-sm font-semibold"
         >
           SUSPICIOUS
         </Badge>
@@ -53,7 +60,7 @@ function getVerdictBadge(verdict: DomainResult["verdict"]) {
       return (
         <Badge
           variant="outline"
-          className="border-red-500/50 bg-red-500/10 text-red-500"
+          className="border-red-500/50 bg-red-500/10 text-red-500 px-4 py-1.5 text-sm font-semibold"
         >
           MALICIOUS
         </Badge>
@@ -65,38 +72,6 @@ function getReputationColor(reputation: number): string {
   if (reputation > 0) return "text-green-500";
   if (reputation < 0) return "text-red-500";
   return "text-muted-foreground";
-}
-
-function getStatCountColor(
-  count: number,
-  type: "malicious" | "suspicious" | "harmless" | "undetected"
-): string {
-  if (type === "malicious") {
-    return count > 0 ? "text-red-500" : "text-green-500";
-  }
-  if (type === "suspicious") {
-    return count > 0 ? "text-yellow-500" : "text-green-500";
-  }
-  if (type === "harmless") return "text-green-500";
-  return "text-muted-foreground";
-}
-
-function getStatBgColor(
-  count: number,
-  type: "malicious" | "suspicious" | "harmless" | "undetected"
-): string {
-  if (type === "malicious") {
-    return count > 0
-      ? "bg-red-500/10 border-red-500/20"
-      : "bg-green-500/10 border-green-500/20";
-  }
-  if (type === "suspicious") {
-    return count > 0
-      ? "bg-yellow-500/10 border-yellow-500/20"
-      : "bg-green-500/10 border-green-500/20";
-  }
-  if (type === "harmless") return "bg-green-500/10 border-green-500/20";
-  return "bg-secondary border-border";
 }
 
 function DomainForm() {
@@ -174,6 +149,20 @@ function DomainForm() {
     }
   };
 
+  const pieData = result
+    ? [
+        { name: "Malicious", value: result.malicious, color: PIE_COLORS.malicious },
+        { name: "Suspicious", value: result.suspicious, color: PIE_COLORS.suspicious },
+        { name: "Harmless", value: result.harmless, color: PIE_COLORS.harmless },
+        { name: "Undetected", value: result.undetected, color: PIE_COLORS.undetected },
+      ].filter((item) => item.value > 0)
+    : [];
+
+  const totalVendors = result
+    ? result.malicious + result.suspicious + result.harmless + result.undetected
+    : 0;
+  const flaggedCount = result ? result.malicious + result.suspicious : 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -237,99 +226,92 @@ function DomainForm() {
       {result && !loading && (
         <Card className="border-border bg-card">
           <CardContent className="p-6">
-            {/* Header with domain and verdict */}
-            <div className="mb-6 flex items-start justify-between">
-              <p className="font-mono text-xl font-semibold text-foreground">
-                {result.domain}
-              </p>
-              {getVerdictBadge(result.verdict)}
-            </div>
-
-            {/* Stat boxes 2x2 grid */}
-            <div className="mb-6 grid grid-cols-2 gap-3">
-              <div
-                className={cn(
-                  "rounded-lg border p-4",
-                  getStatBgColor(result.malicious, "malicious")
-                )}
-              >
-                <p className="mb-1 text-sm text-muted-foreground">Malicious</p>
-                <p
-                  className={cn(
-                    "text-2xl font-bold",
-                    getStatCountColor(result.malicious, "malicious")
-                  )}
-                >
-                  {result.malicious}
+            {/* Header with domain, verdict, and reputation score */}
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-xl font-semibold text-foreground">
+                  {result.domain}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {flaggedCount} of {totalVendors} security vendors flagged this domain
                 </p>
               </div>
-              <div
-                className={cn(
-                  "rounded-lg border p-4",
-                  getStatBgColor(result.suspicious, "suspicious")
-                )}
-              >
-                <p className="mb-1 text-sm text-muted-foreground">
-                  Suspicious
-                </p>
-                <p
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
                   className={cn(
-                    "text-2xl font-bold",
-                    getStatCountColor(result.suspicious, "suspicious")
+                    "border-border text-xs",
+                    getReputationColor(result.reputation)
                   )}
                 >
-                  {result.suspicious}
-                </p>
-              </div>
-              <div
-                className={cn(
-                  "rounded-lg border p-4",
-                  getStatBgColor(result.harmless, "harmless")
-                )}
-              >
-                <p className="mb-1 text-sm text-muted-foreground">Harmless</p>
-                <p
-                  className={cn(
-                    "text-2xl font-bold",
-                    getStatCountColor(result.harmless, "harmless")
-                  )}
-                >
-                  {result.harmless}
-                </p>
-              </div>
-              <div
-                className={cn(
-                  "rounded-lg border p-4",
-                  getStatBgColor(result.undetected, "undetected")
-                )}
-              >
-                <p className="mb-1 text-sm text-muted-foreground">
-                  Undetected
-                </p>
-                <p
-                  className={cn(
-                    "text-2xl font-bold",
-                    getStatCountColor(result.undetected, "undetected")
-                  )}
-                >
-                  {result.undetected}
-                </p>
+                  Score: {result.reputation}
+                </Badge>
+                {getVerdictBadge(result.verdict)}
               </div>
             </div>
 
-            {/* Reputation Score */}
-            <div className="mb-6 rounded-lg border border-border bg-secondary p-4">
-              <p className="mb-1 text-sm text-muted-foreground">
-                VirusTotal Reputation Score
-              </p>
-              <p
-                className={cn(
-                  "text-3xl font-bold",
-                  getReputationColor(result.reputation)
+            {/* Pie chart + Stats list */}
+            <div className="mb-6 grid grid-cols-2 gap-6">
+              {/* Left: Donut chart */}
+              <div className="flex items-center justify-center">
+                {pieData.length > 0 ? (
+                  <div className="h-[200px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex h-[200px] items-center justify-center">
+                    <p className="text-sm text-muted-foreground">No data</p>
+                  </div>
                 )}
-              >
-                {result.reputation}
-              </p>
+              </div>
+
+              {/* Right: Stats list */}
+              <div className="flex flex-col justify-center gap-3">
+                <div className="flex items-center justify-between rounded-md border border-red-500/20 bg-red-500/5 px-4 py-3">
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <span className="text-muted-foreground">Malicious</span>
+                  </span>
+                  <span className="text-lg font-bold text-red-500">{result.malicious}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-md border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                    <span className="text-muted-foreground">Suspicious</span>
+                  </span>
+                  <span className="text-lg font-bold text-yellow-500">{result.suspicious}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-md border border-green-500/20 bg-green-500/5 px-4 py-3">
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                    <span className="text-muted-foreground">Harmless</span>
+                  </span>
+                  <span className="text-lg font-bold text-green-500">{result.harmless}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-md border border-border bg-muted px-4 py-3">
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="h-2.5 w-2.5 rounded-full bg-gray-400" />
+                    <span className="text-muted-foreground">Undetected</span>
+                  </span>
+                  <span className="text-lg font-bold text-muted-foreground">{result.undetected}</span>
+                </div>
+              </div>
             </div>
 
             {/* Categories */}
@@ -338,19 +320,17 @@ function DomainForm() {
                 <p className="mb-2 text-sm text-muted-foreground">Categories</p>
                 <div className="flex flex-wrap gap-2">
                   {result.categories.map((category, index) => (
-                    <span
-                      key={index}
-                      className="rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground"
-                    >
+                    <Badge key={index} variant="secondary">
                       {category}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               </div>
             )}
 
             {/* Last Analysis Date */}
-            <div className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
               Last analysis: {result.lastAnalysisDate}
             </div>
           </CardContent>

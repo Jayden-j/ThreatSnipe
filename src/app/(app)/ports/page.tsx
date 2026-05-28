@@ -18,14 +18,14 @@ import {
 import {
   Loader2,
   ScanLine,
-  Unlock,
   Lock,
-  Shield,
+  X,
+  Filter,
   Search,
-  Info,
-  AlertTriangle,
   AlertCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 interface PortInfo {
   port: number;
@@ -52,15 +52,28 @@ interface NotablePort {
 }
 
 const NOTABLE_PORTS: NotablePort[] = [
-  { port: 22, service: "SSH", description: "Remote access enabled", risky: false },
+  { port: 22, service: "SSH", description: "Secure Shell - Remote access", risky: false },
   { port: 23, service: "Telnet", description: "Unencrypted remote access (risky)", risky: true },
-  { port: 21, service: "FTP", description: "File transfer (consider SFTP instead)", risky: false },
-  { port: 3389, service: "RDP", description: "Remote Desktop exposed", risky: true },
-  { port: 3306, service: "MySQL", description: "Database port exposed", risky: true },
-  { port: 6379, service: "Redis", description: "Cache port exposed", risky: true },
-  { port: 27017, service: "MongoDB", description: "Database port exposed", risky: true },
-  { port: 80, service: "HTTP", description: "Web server running", risky: false },
-  { port: 443, service: "HTTPS", description: "Secure web server running", risky: false },
+  { port: 21, service: "FTP", description: "File Transfer Protocol", risky: false },
+  { port: 3389, service: "RDP", description: "Remote Desktop Protocol", risky: true },
+  { port: 3306, service: "MySQL", description: "MySQL Database", risky: true },
+  { port: 6379, service: "Redis", description: "Redis Cache", risky: true },
+  { port: 27017, service: "MongoDB", description: "MongoDB Database", risky: true },
+  { port: 80, service: "HTTP", description: "Web Server", risky: false },
+  { port: 443, service: "HTTPS", description: "HTTPS/TLS", risky: false },
+  { port: 25, service: "SMTP", description: "Email server", risky: false },
+  { port: 53, service: "DNS", description: "Domain Name System", risky: false },
+  { port: 110, service: "POP3", description: "Email server", risky: false },
+  { port: 143, service: "IMAP", description: "Email server", risky: false },
+  { port: 993, service: "IMAPS", description: "Secure email server", risky: false },
+  { port: 995, service: "POP3S", description: "Secure email server", risky: false },
+  { port: 8080, service: "HTTP Proxy", description: "Web proxy server", risky: false },
+  { port: 8443, service: "HTTPS Alt", description: "Alternative HTTPS port", risky: false },
+  { port: 5432, service: "PostgreSQL", description: "PostgreSQL Database", risky: true },
+  { port: 5900, service: "VNC", description: "Remote desktop (VNC)", risky: true },
+  { port: 1521, service: "Oracle DB", description: "Oracle Database", risky: true },
+  { port: 1433, service: "MSSQL", description: "Microsoft SQL Server", risky: true },
+  { port: 445, service: "SMB", description: "Windows file sharing", risky: true },
 ];
 
 function getStateBadge(state: string) {
@@ -189,6 +202,14 @@ function PortForm() {
     openPortNumbers.has(np.port)
   );
 
+  const barData = result
+    ? [
+        { name: "Open", value: result.openCount, color: "#22c55e" },
+        { name: "Closed", value: result.closedCount, color: "#ef4444" },
+        { name: "Filtered", value: result.filteredCount, color: "#eab308" },
+      ]
+    : [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -261,7 +282,7 @@ function PortForm() {
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-4">
               <div className="flex items-center gap-2">
-                <Unlock className="h-4 w-4 text-green-500" />
+                <Lock className="h-4 w-4 text-green-500" />
                 <p className="text-sm text-muted-foreground">Open</p>
               </div>
               <p className="mt-1 text-2xl font-bold text-green-500">
@@ -270,7 +291,7 @@ function PortForm() {
             </div>
             <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
               <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-red-500" />
+                <X className="h-4 w-4 text-red-500" />
                 <p className="text-sm text-muted-foreground">Closed</p>
               </div>
               <p className="mt-1 text-2xl font-bold text-red-500">
@@ -279,7 +300,7 @@ function PortForm() {
             </div>
             <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4">
               <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-yellow-500" />
+                <Filter className="h-4 w-4 text-yellow-500" />
                 <p className="text-sm text-muted-foreground">Filtered</p>
               </div>
               <p className="mt-1 text-2xl font-bold text-yellow-500">
@@ -287,6 +308,46 @@ function PortForm() {
               </p>
             </div>
           </div>
+
+          {/* Distribution BarChart */}
+          {barData.some((d) => d.value > 0) && (
+            <Card className="border-border bg-card">
+              <CardContent className="p-4">
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barData} barCategoryGap="20%">
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fill: "#9ca3af", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tick={{ fill: "#9ca3af", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#1a1a2e",
+                          border: "1px solid #333",
+                          borderRadius: "8px",
+                          color: "#fff",
+                          fontSize: "13px",
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                        {barData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Port table */}
           <Card className="border-border bg-card">
@@ -302,7 +363,10 @@ function PortForm() {
                 </TableHeader>
                 <TableBody>
                   {sortedPorts.map((port) => (
-                    <TableRow key={`${port.port}/${port.protocol}`}>
+                    <TableRow
+                      key={`${port.port}/${port.protocol}`}
+                      className="hover:bg-muted/30"
+                    >
                       <TableCell className="font-mono text-foreground">
                         {port.port}/{port.protocol}
                       </TableCell>
@@ -333,11 +397,12 @@ function PortForm() {
                       key={np.port}
                       className="flex items-center gap-3 rounded-lg border border-border bg-secondary p-3"
                     >
-                      {np.risky ? (
-                        <AlertTriangle className="h-5 w-5 flex-shrink-0 text-yellow-500" />
-                      ) : (
-                        <Info className="h-5 w-5 flex-shrink-0 text-blue-400" />
-                      )}
+                      <span
+                        className={cn(
+                          "h-2.5 w-2.5 rounded-full flex-shrink-0",
+                          np.risky ? "bg-red-500" : "bg-green-500"
+                        )}
+                      />
                       <div>
                         <p className="font-mono text-sm font-medium text-foreground">
                           {np.port}/{np.service.toLowerCase()}

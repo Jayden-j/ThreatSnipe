@@ -11,9 +11,12 @@ export default function AppLayout({
     <>
       <Sidebar />
       <div className="min-h-screen ml-60">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-30 grid h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div />
           <PageTitle />
-          <TopbarActions />
+          <div className="flex justify-end">
+            <TopbarActions />
+          </div>
         </header>
         <main className="p-6">{children}</main>
       </div>

@@ -66,6 +66,28 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+/**
+ * Group alerts by target key (ip_address or domain), keeping only the latest
+ * scan for each unique target, then sort by created_at descending so the most
+ * recently triggered alerts appear first.
+ */
+function groupByLatest<T extends { created_at: string }>(
+  items: T[],
+  keyFn: (item: T) => string
+): T[] {
+  const map = new Map<string, T>();
+  for (const item of items) {
+    const key = keyFn(item);
+    const existing = map.get(key);
+    if (!existing || new Date(item.created_at) > new Date(existing.created_at)) {
+      map.set(key, item);
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+}
+
 export default async function AlertsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -82,7 +104,6 @@ export default async function AlertsPage() {
     .order("created_at", { ascending: false });
 
   const alerts = (scans ?? []) as Scan[];
-  const alertCount = alerts.length;
 
   // Fetch malicious domain scans
   const { data: domainScans } = await supabase
@@ -93,7 +114,12 @@ export default async function AlertsPage() {
     .order("created_at", { ascending: false });
 
   const maliciousDomains = (domainScans ?? []) as DomainScan[];
-  const hasMaliciousDomains = maliciousDomains.length > 0;
+
+  // Group by unique target, keeping only the latest alert per target
+  const groupedAlerts = groupByLatest(alerts, (a) => a.ip_address);
+  const groupedDomains = groupByLatest(maliciousDomains, (d) => d.domain);
+
+  const totalAlertCount = groupedAlerts.length + groupedDomains.length;
 
   return (
     <div className="space-y-6">
@@ -101,9 +127,9 @@ export default async function AlertsPage() {
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
           <ShieldAlert className="h-6 w-6 text-primary" />
           Alerts
-          {(alertCount + maliciousDomains.length) > 0 && (
+          {totalAlertCount > 0 && (
             <span className="ml-2 rounded-md bg-red-500/20 px-2.5 py-0.5 text-sm font-semibold text-red-400 border border-red-500/30">
-              {alertCount + maliciousDomains.length}
+              {totalAlertCount}
             </span>
           )}
         </h1>
@@ -113,7 +139,7 @@ export default async function AlertsPage() {
       </div>
 
       {/* Threat IPs Section */}
-      {alertCount > 0 && (
+      {groupedAlerts.length > 0 && (
         <>
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -122,7 +148,7 @@ export default async function AlertsPage() {
             </h2>
           </div>
           <div className="space-y-4">
-            {alerts.map((alert) => (
+            {groupedAlerts.map((alert) => (
               <Card
                 key={alert.id}
                 className="border-l-4 border-l-red-500 border-border bg-zinc-900"
@@ -178,7 +204,7 @@ export default async function AlertsPage() {
       )}
 
       {/* Malicious Domains Section */}
-      {hasMaliciousDomains && (
+      {groupedDomains.length > 0 && (
         <>
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -187,7 +213,7 @@ export default async function AlertsPage() {
             </h2>
           </div>
           <div className="space-y-4">
-            {maliciousDomains.map((scan) => (
+            {groupedDomains.map((scan) => (
               <Card
                 key={scan.id}
                 className="border-l-4 border-l-red-500 border-border bg-zinc-900"
@@ -242,7 +268,7 @@ export default async function AlertsPage() {
       )}
 
       {/* Empty State */}
-      {alertCount === 0 && !hasMaliciousDomains && (
+      {totalAlertCount === 0 && (
         <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
             <svg

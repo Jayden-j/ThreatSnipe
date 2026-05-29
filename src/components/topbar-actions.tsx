@@ -40,7 +40,9 @@ export function TopbarActions() {
       <Link href="/alerts" className="relative w-7 h-7 flex items-center justify-center">
         <Bell className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
         {alertCount > 0 && (
-          <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-background" />
+          <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-background px-1">
+            {alertCount > 99 ? "99+" : alertCount}
+          </span>
         )}
       </Link>
 

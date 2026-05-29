@@ -556,6 +556,7 @@ function DomainDetail({ raw }: { raw: Record<string, unknown> }) {
                     ))}
                   </Pie>
                   <Tooltip
+                    cursor={{ fill: "transparent" }}
                     contentStyle={{
                       backgroundColor: "#1a1a2e",
                       border: "1px solid #333",
@@ -722,16 +723,17 @@ function PortScanDetail({ raw }: { raw: Record<string, unknown> }) {
                     axisLine={false}
                     tickLine={false}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1a1a2e",
-                      border: "1px solid #333",
-                      borderRadius: "8px",
-                      color: "#fff",
-                      fontSize: "13px",
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                <Tooltip
+                  cursor={{ fill: "transparent" }}
+                  contentStyle={{
+                    backgroundColor: "#1a1a2e",
+                    border: "1px solid #333",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    fontSize: "13px",
+                  }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={50}>
                     {barData.map((entry, i) => (
                       <Cell key={i} fill={entry.color} />
                     ))}

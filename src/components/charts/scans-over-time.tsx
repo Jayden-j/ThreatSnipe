@@ -54,6 +54,7 @@ export function ScansOverTime({ data }: ScansOverTimeProps) {
                   axisLine={false}
                 />
                 <Tooltip
+                  cursor={{ stroke: "#ffffff20", strokeWidth: 1 }}
                   contentStyle={{
                     backgroundColor: "#1a1a2e",
                     border: "1px solid #00ff88",

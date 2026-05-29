@@ -329,6 +329,7 @@ function PortForm() {
                         tickLine={false}
                       />
                       <Tooltip
+                        cursor={{ fill: "transparent" }}
                         contentStyle={{
                           backgroundColor: "#1a1a2e",
                           border: "1px solid #333",

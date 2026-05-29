@@ -53,6 +53,7 @@ export function ThreatBreakdown({ clean, suspicious, threat }: ThreatBreakdownPr
                     ))}
                   </Pie>
                   <Tooltip
+                    cursor={{ fill: "transparent" }}
                     contentStyle={{
                       backgroundColor: "#1a1a2e",
                       border: "1px solid #00ff88",

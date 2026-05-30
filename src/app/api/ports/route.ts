@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createServiceClient } from "@/lib/supabase/service";
 import { Socket } from "net";
 import { lookup } from "dns/promises";
 
@@ -26,6 +27,8 @@ interface CommonPort {
   port: number;
   service: string;
 }
+
+const HIGH_RISK_PORTS = [21, 23, 25, 135, 139, 445, 1433, 3306, 3389, 5432, 6379, 27017];
 
 const COMMON_PORTS: CommonPort[] = [
   { port: 20, service: "ftp-data" },
@@ -170,7 +173,8 @@ export async function GET(request: NextRequest) {
     // Scan common ports
     const ports = await scanPortsInBatches(host, COMMON_PORTS);
 
-    const openCount = ports.filter((p) => p.state === "open").length;
+    const openPorts = ports.filter((p) => p.state === "open");
+    const openCount = openPorts.length;
     const closedCount = ports.filter((p) => p.state === "closed").length;
     const filteredCount = ports.filter((p) => p.state === "filtered").length;
 
@@ -204,15 +208,67 @@ export async function GET(request: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        await supabase.from("port_scans").insert({
-          user_id: user.id,
-          target: trimmedTarget,
-          host,
-          open_count: openCount,
-          closed_count: closedCount,
-          filtered_count: filteredCount,
-          ports,
-        });
+        const { data: scanRecord } = await supabase
+          .from("port_scans")
+          .insert({
+            user_id: user.id,
+            target: trimmedTarget,
+            host,
+            open_count: openCount,
+            closed_count: closedCount,
+            filtered_count: filteredCount,
+            ports,
+          })
+          .select("id")
+          .single();
+
+        // Evaluate alert: check high-risk ports and open count
+        if (scanRecord?.id && (openCount > 0)) {
+          const highRiskOpen = openPorts.filter((p) => HIGH_RISK_PORTS.includes(p.port));
+          const highRiskNames = highRiskOpen.map((p) => `${p.service} (${p.port})`);
+
+          let severity: string;
+          let title: string;
+          let message: string;
+
+          if (highRiskOpen.length > 0) {
+            severity = "critical";
+            title = `Port Risk: ${trimmedTarget}`;
+            message = `${openCount} open port${openCount === 1 ? "" : "s"} including high-risk: ${highRiskNames.join(", ")}`;
+          } else if (openCount >= 5) {
+            severity = "high";
+            title = `Port Risk: ${trimmedTarget}`;
+            message = `${openCount} open port${openCount === 1 ? "" : "s"} detected - above normal threshold`;
+          } else {
+            severity = "medium";
+            title = `Port Risk: ${trimmedTarget}`;
+            message = `${openCount} open port${openCount === 1 ? "" : "s"} detected`;
+          }
+
+          try {
+            const serviceSupabase = createServiceClient();
+            await serviceSupabase.from("alerts").insert({
+              user_id: user.id,
+              source_table: "port_scans",
+              source_record_id: scanRecord.id,
+              severity,
+              category: "port_risk",
+              title,
+              message,
+              metadata: {
+                target: trimmedTarget,
+                host,
+                open_count: openCount,
+                high_risk_ports: highRiskOpen.map((p) => ({
+                  port: p.port,
+                  service: p.service,
+                })),
+              },
+            });
+          } catch (alertError) {
+            console.error("Failed to insert alert:", alertError);
+          }
+        }
       }
     } catch (dbError) {
       console.error("Failed to save port scan to database:", dbError);

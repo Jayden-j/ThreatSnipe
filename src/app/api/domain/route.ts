@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createServiceClient } from "@/lib/supabase/service";
 
 interface VirusTotalResponse {
   data?: {
@@ -159,18 +160,53 @@ export async function GET(request: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        await supabase.from("domain_scans").insert({
-          user_id: user.id,
-          domain,
-          malicious,
-          suspicious,
-          harmless: stats.harmless,
-          undetected: stats.undetected,
-          reputation: attrs.reputation,
-          categories: Object.values(attrs.categories || {}),
-          last_analysis_date: formatUnixTimestamp(attrs.last_analysis_date),
-          verdict,
-        });
+        const { data: scanRecord } = await supabase
+          .from("domain_scans")
+          .insert({
+            user_id: user.id,
+            domain,
+            malicious,
+            suspicious,
+            harmless: stats.harmless,
+            undetected: stats.undetected,
+            reputation: attrs.reputation,
+            categories: Object.values(attrs.categories || {}),
+            last_analysis_date: formatUnixTimestamp(attrs.last_analysis_date),
+            verdict,
+            read: false,
+          })
+          .select("id")
+          .single();
+
+        // Insert alert based on domain verdict
+        if (verdict !== "CLEAN" && scanRecord?.id) {
+          let severity: string;
+          if (malicious > 0) severity = "critical";
+          else if (suspicious > 3) severity = "high";
+          else severity = "medium";
+
+          try {
+            const serviceSupabase = createServiceClient();
+            await serviceSupabase.from("alerts").insert({
+              user_id: user.id,
+              source_table: "domain_scans",
+              source_record_id: scanRecord.id,
+              severity,
+              category: "malicious_domain",
+              title: `Domain Alert: ${domain}`,
+              message: `${malicious} malicious, ${suspicious} suspicious - Reputation: ${attrs.reputation}`,
+              metadata: {
+                domain,
+                malicious,
+                suspicious,
+                reputation: attrs.reputation,
+                verdict,
+              },
+            });
+          } catch (alertError) {
+            console.error("Failed to insert alert:", alertError);
+          }
+        }
       }
     } catch (dbError) {
       // Log but don't fail the request if scan save fails

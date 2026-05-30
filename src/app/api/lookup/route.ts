@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createServiceClient } from "@/lib/supabase/service";
 
 interface AbuseIPDBResponse {
   data?: {
@@ -121,16 +122,53 @@ export async function GET(request: NextRequest) {
           abuseScore <= 50 ? "SUSPICIOUS" :
           "THREAT";
 
-        await supabase.from("scans").insert({
-          user_id: user.id,
-          ip_address: data.data.ipAddress,
-          abuse_score: abuseScore,
-          country: data.data.countryCode,
-          isp: data.data.isp,
-          total_reports: data.data.totalReports,
-          last_reported: data.data.lastReportedAt,
-          threat_level: threatLevel,
-        });
+        const { data: scanRecord } = await supabase
+          .from("scans")
+          .insert({
+            user_id: user.id,
+            ip_address: data.data.ipAddress,
+            abuse_score: abuseScore,
+            country: data.data.countryCode,
+            isp: data.data.isp,
+            total_reports: data.data.totalReports,
+            last_reported: data.data.lastReportedAt,
+            threat_level: threatLevel,
+            read: false,
+          })
+          .select("id")
+          .single();
+
+        // Insert alert if abuse score is significant
+        if (abuseScore >= 15 && scanRecord?.id) {
+          let severity: string;
+          if (abuseScore >= 75) severity = "critical";
+          else if (abuseScore >= 50) severity = "high";
+          else if (abuseScore >= 25) severity = "medium";
+          else severity = "low";
+
+          try {
+            const serviceSupabase = createServiceClient();
+            await serviceSupabase.from("alerts").insert({
+              user_id: user.id,
+              source_table: "scans",
+              source_record_id: scanRecord.id,
+              severity,
+              category: "ip_threat",
+              title: `IP Threat: ${data.data.ipAddress}`,
+              message: `Abuse score ${abuseScore}/100 with ${data.data.totalReports} report${data.data.totalReports === 1 ? "" : "s"}`,
+              metadata: {
+                ip_address: data.data.ipAddress,
+                abuse_score: abuseScore,
+                total_reports: data.data.totalReports,
+                country: data.data.countryCode,
+                isp: data.data.isp,
+                threat_level: threatLevel,
+              },
+            });
+          } catch (alertError) {
+            console.error("Failed to insert alert:", alertError);
+          }
+        }
 
         // Fire webhook notification for THREAT scans (non-blocking)
         if (threatLevel === "THREAT") {

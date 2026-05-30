@@ -1,11 +1,15 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { usePathname, useRouter } from "next/navigation";
 
-export function TopbarActions() {
+export function TopbarActions({
+  onMenuClick,
+}: {
+  onMenuClick?: () => void;
+}) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestUnreadId, setLatestUnreadId] = useState<string | null>(null);
@@ -146,6 +150,14 @@ export function TopbarActions() {
 
   return (
     <div className="flex items-center gap-3">
+      {/* Mobile menu button */}
+      <button
+        onClick={onMenuClick}
+        className="lg:hidden w-7 h-7 flex items-center justify-center"
+      >
+        <Menu className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+      </button>
+
       {/* Alert bell */}
       <button
         onClick={handleBellClick}

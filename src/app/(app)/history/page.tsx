@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import gsap from "gsap";
+import { downloadCSV } from "@/lib/csv";
 import {
   Table,
   TableBody,
@@ -28,6 +29,7 @@ import {
   History,
   Search,
   Loader2,
+  FileDown,
 } from "lucide-react";
 import {
   PieChart,
@@ -270,14 +272,44 @@ export default function ScanHistoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-          <History className="h-6 w-6 text-primary" />
-          Scan History
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          View all your past scans in one place.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+            <History className="h-6 w-6 text-primary" />
+            Scan History
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            View all your past scans in one place.
+          </p>
+        </div>
+        {!loading && entries.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              const rows = filtered.map((e) => ({
+                Tool:
+                  e.tool_type === "ip_lookup"
+                    ? "IP Lookup"
+                    : e.tool_type === "domain"
+                      ? "Domain"
+                      : "Port Scan",
+                Target: e.target,
+                Verdict: e.verdict,
+                Summary: e.summary,
+                Date: new Date(e.created_at).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                }),
+              }));
+              downloadCSV(rows, `scan-history-${new Date().toISOString().split("T")[0]}.csv`);
+            }}
+            className="border-border text-muted-foreground hover:text-foreground"
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+        )}
       </div>
 
       {/* Tabs filter */}

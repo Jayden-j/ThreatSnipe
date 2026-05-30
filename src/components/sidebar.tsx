@@ -13,6 +13,13 @@ import {
   LogOut,
   Globe,
   ScanLine,
+  List,
+  Network,
+  FileText,
+  Lock,
+  Mail,
+  Activity,
+  ClipboardList,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -21,8 +28,16 @@ const navItems = [
   { href: "/lookup", label: "IP Lookup", icon: Search },
   { href: "/domain", label: "Domain Lookup", icon: Globe },
   { href: "/ports", label: "Port Scanner", icon: ScanLine },
+  { href: "/blacklist", label: "Blacklist Check", icon: List },
+  { href: "/dns", label: "DNS Records", icon: Network },
+  { href: "/whois", label: "WHOIS Lookup", icon: FileText },
   { href: "/history", label: "Scan History", icon: History },
   { href: "/settings", label: "Settings", icon: Settings },
+  // Tools group (no visual separator — just appended)
+  { href: "/ssl", label: "SSL Checker", icon: Lock },
+  { href: "/email-security", label: "Email Security", icon: Mail },
+  { href: "/server-status", label: "Server Status", icon: Activity },
+  { href: "/bulk", label: "Bulk Check", icon: ClipboardList },
 ];
 
 export function Sidebar() {

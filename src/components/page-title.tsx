@@ -7,9 +7,16 @@ const routeTitles: Record<string, string> = {
   "/lookup": "IP Lookup",
   "/domain": "Domain Lookup",
   "/ports": "Port Scanner",
+  "/blacklist": "Blacklist Check",
+  "/dns": "DNS Records",
+  "/whois": "WHOIS Lookup",
   "/history": "Scan History",
   "/alerts": "Alerts",
   "/settings": "Settings",
+  "/ssl": "SSL Certificate Checker",
+  "/email-security": "Email Security",
+  "/server-status": "Server Status",
+  "/bulk": "Bulk Check",
 };
 
 export function PageTitle() {

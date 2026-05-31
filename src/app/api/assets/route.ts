@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!["ip", "domain", "hostname"].includes(type)) {
+    if (!["ip", "domain", "cidr"].includes(type)) {
       return NextResponse.json(
-        { error: "Invalid type. Must be ip, domain, or hostname" },
+        { error: "Invalid type. Must be ip, domain, or cidr" },
         { status: 400 }
       );
     }
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         type,
         checks_enabled: checks_enabled || undefined,
         monitoring_enabled: monitoring_enabled || false,
-        check_interval: check_interval || "default",
+        check_interval: check_interval || 60,
         alerts_enabled: alerts_enabled || false,
         alert_severities: alert_severities || ["critical", "high"],
         alert_channels: alert_channels || [],

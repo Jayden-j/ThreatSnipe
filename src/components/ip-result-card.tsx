@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Globe, Building2, FileWarning, Calendar } from "lucide-react";
+import { Globe, Building2, FileWarning, Calendar, Network } from "lucide-react";
 
 interface IpResultData {
   ip: string;
@@ -10,6 +10,9 @@ interface IpResultData {
   isp: string;
   totalReports: number;
   lastReported: string | null;
+  originalInput?: string;
+  isDomain?: boolean;
+  resolvedIp?: string;
 }
 
 const COUNTRY_NAMES: Record<string, { name: string; flag: string }> = {
@@ -123,9 +126,17 @@ export function IpResultCard({ data }: IpResultCardProps) {
   return (
     <Card className="border-border bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="font-mono text-xl text-foreground">
-          {data.ip}
-        </CardTitle>
+        <div className="min-w-0 flex-1">
+          <CardTitle className="font-mono text-xl text-foreground">
+            {data.isDomain && data.originalInput ? data.originalInput : data.ip}
+          </CardTitle>
+          {data.isDomain && data.resolvedIp && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <Network className="h-3.5 w-3.5" />
+              Resolved IP: {data.resolvedIp}
+            </p>
+          )}
+        </div>
         <Badge className={badgeClasses}>{badge.label}</Badge>
       </CardHeader>
       <CardContent className="space-y-4">

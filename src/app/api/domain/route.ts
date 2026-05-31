@@ -31,6 +31,19 @@ interface DomainResult {
   categories: string[];
   lastAnalysisDate: string;
   verdict: "CLEAN" | "SUSPICIOUS" | "MALICIOUS";
+  inputType: "domain" | "ip";
+}
+
+function isValidIP(ip: string): boolean {
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const ipv4Match = ip.match(ipv4Regex);
+  if (ipv4Match) {
+    return ipv4Match.slice(1).every((octet) => {
+      const num = parseInt(octet, 10);
+      return num >= 0 && num <= 255;
+    });
+  }
+  return false;
 }
 
 function cleanDomain(input: string): string {
@@ -73,15 +86,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const domain = cleanDomain(domainInput);
-
-  if (!isValidDomain(domain)) {
-    return NextResponse.json(
-      { error: "Invalid domain or URL" },
-      { status: 400 }
-    );
-  }
-
   const apiKey = process.env.VIRUSTOTAL_API_KEY;
 
   if (!apiKey || apiKey === "your_virustotal_api_key") {
@@ -91,23 +95,45 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Auto-detect if input is IP or domain
+  let isIp = false;
+  let target: string;
+
+  if (isValidIP(domainInput)) {
+    isIp = true;
+    target = domainInput;
+  } else {
+    const cleaned = cleanDomain(domainInput);
+    if (!isValidDomain(cleaned)) {
+      return NextResponse.json(
+        { error: "Invalid domain or IP address" },
+        { status: 400 }
+      );
+    }
+    target = cleaned;
+  }
+
   try {
-    const response = await fetch(
-      `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(domain)}`,
-      {
-        headers: {
-          "x-apikey": apiKey,
-          Accept: "application/json",
-        },
-      }
-    );
+    let url: string;
+    if (isIp) {
+      url = `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(target)}`;
+    } else {
+      url = `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(target)}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        "x-apikey": apiKey,
+        Accept: "application/json",
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       return NextResponse.json(
         {
           error:
-            errorData?.error?.message || "Failed to fetch domain reputation",
+            errorData?.error?.message || "Failed to fetch reputation data",
         },
         { status: 500 }
       );
@@ -129,7 +155,7 @@ export async function GET(request: NextRequest) {
     const verdict = getVerdict(malicious, suspicious);
 
     const result: DomainResult = {
-      domain,
+      domain: target,
       harmless: stats.harmless,
       malicious,
       suspicious,
@@ -138,6 +164,7 @@ export async function GET(request: NextRequest) {
       categories: Object.values(attrs.categories || {}),
       lastAnalysisDate: formatUnixTimestamp(attrs.last_analysis_date),
       verdict,
+      inputType: isIp ? "ip" : "domain",
     };
 
     // Save scan to Supabase if user is authenticated
@@ -164,7 +191,7 @@ export async function GET(request: NextRequest) {
           .from("domain_scans")
           .insert({
             user_id: user.id,
-            domain,
+            domain: target,
             malicious,
             suspicious,
             harmless: stats.harmless,
@@ -174,6 +201,7 @@ export async function GET(request: NextRequest) {
             last_analysis_date: formatUnixTimestamp(attrs.last_analysis_date),
             verdict,
             read: false,
+            input_type: isIp ? "ip" : "domain",
           })
           .select("id")
           .single();
@@ -193,14 +221,15 @@ export async function GET(request: NextRequest) {
               source_record_id: scanRecord.id,
               severity,
               category: "malicious_domain",
-              title: `Domain Alert: ${domain}`,
+              title: `${isIp ? "IP" : "Domain"} Alert: ${target}`,
               message: `${malicious} malicious, ${suspicious} suspicious - Reputation: ${attrs.reputation}`,
               metadata: {
-                domain,
+                [isIp ? "ip_address" : "domain"]: target,
                 malicious,
                 suspicious,
                 reputation: attrs.reputation,
                 verdict,
+                input_type: isIp ? "ip" : "domain",
               },
             });
           } catch (alertError) {

@@ -24,22 +24,27 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-const navItems = [
+const scopeItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/lookup", label: "IP Lookup", icon: Search },
-  { href: "/domain", label: "Domain Lookup", icon: Globe },
+  { href: "/assets", label: "Assets", icon: FolderKanban },
+];
+
+const snipeItems = [
+  { href: "/lookup", label: "Abuse Checker", icon: Search },
+  { href: "/domain", label: "VirusTotal Check", icon: Globe },
   { href: "/ports", label: "Port Scanner", icon: ScanLine },
   { href: "/blacklist", label: "Blacklist Check", icon: List },
   { href: "/dns", label: "DNS Records", icon: Network },
   { href: "/whois", label: "WHOIS Lookup", icon: FileText },
-  { href: "/history", label: "Scan History", icon: History },
-  { href: "/assets", label: "Assets", icon: FolderKanban },
-  { href: "/settings", label: "Settings", icon: Settings },
-  // Tools group (no visual separator — just appended)
   { href: "/ssl", label: "SSL Checker", icon: Lock },
   { href: "/email-security", label: "Email Security", icon: Mail },
   { href: "/server-status", label: "Server Status", icon: Activity },
   { href: "/bulk", label: "Bulk Check", icon: ClipboardList },
+  { href: "/history", label: "Scan History", icon: History },
+];
+
+const otherItems = [
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar({
@@ -89,11 +94,64 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-          {navItems.map((item) => {
+        <nav className="flex flex-1 flex-col px-3 py-4 overflow-y-auto">
+          {/* Scope section */}
+          <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            Scope
+          </div>
+          {scopeItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={handleNavClick}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="flex-1">{item.label}</span>
+              </Link>
+            );
+          })}
 
+          {/* Snipe section */}
+          <div className="mt-3 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            Snipe
+          </div>
+          {snipeItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={handleNavClick}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="flex-1">{item.label}</span>
+              </Link>
+            );
+          })}
+
+          {/* Other section */}
+          <div className="mt-3 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            Other
+          </div>
+          {otherItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}

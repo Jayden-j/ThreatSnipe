@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,11 +29,10 @@ import {
   Shield,
   Plus,
   Search,
-  Monitor,
-  Bell,
+  Folder,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,10 +40,10 @@ interface Asset {
   id: string;
   name: string;
   target: string;
-  type: "ip" | "domain" | "hostname";
+  type: "ip" | "domain" | "cidr";
   checks_enabled: Record<string, boolean>;
   monitoring_enabled: boolean;
-  check_interval: string;
+  check_interval: number;
   alerts_enabled: boolean;
   alert_severities: string[];
   alert_channels: string[];
@@ -56,37 +54,30 @@ interface Asset {
   created_at: string;
 }
 
-interface UserSettings {
-  slack_webhook?: string;
-  discord_webhook?: string;
-  check_interval?: string;
-  alert_severities?: string[];
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CHECK_OPTIONS: { key: string; label: string }[] = [
-  { key: "ip_lookup", label: "IP Lookup" },
-  { key: "domain_lookup", label: "Domain Lookup" },
+  { key: "ip_lookup", label: "Abuse Checker" },
+  { key: "domain_lookup", label: "VirusTotal Check" },
   { key: "port_scan", label: "Port Scanner" },
-  { key: "blacklist", label: "Blacklist Check (DNSBL)" },
+  { key: "blacklist", label: "Blacklist Check" },
   { key: "dns_records", label: "DNS Records" },
   { key: "whois", label: "WHOIS Lookup" },
-  { key: "ssl", label: "SSL Certificate" },
-  { key: "email_security", label: "Email Security (SPF/DKIM/DMARC)" },
+  { key: "ssl", label: "SSL Checker" },
+  { key: "email_security", label: "Email Security" },
   { key: "server_status", label: "Server Status" },
-  { key: "bulk_check", label: "Bulk Check" },
 ];
 
 const CHECK_INTERVALS = [
-  { value: "default", label: "Use default (from Settings)" },
-  { value: "15min", label: "Every 15 min" },
-  { value: "30min", label: "Every 30 min" },
-  { value: "1hour", label: "Every 1 hour" },
-  { value: "3hours", label: "Every 3 hours" },
-  { value: "6hours", label: "Every 6 hours" },
-  { value: "12hours", label: "Every 12 hours" },
-  { value: "24hours", label: "Every 24 hours" },
+  { value: 5, label: "Every 5 minutes" },
+  { value: 10, label: "Every 10 minutes" },
+  { value: 15, label: "Every 15 minutes" },
+  { value: 30, label: "Every 30 minutes" },
+  { value: 60, label: "Every 1 hour" },
+  { value: 180, label: "Every 3 hours" },
+  { value: 360, label: "Every 6 hours" },
+  { value: 720, label: "Every 12 hours" },
+  { value: 1440, label: "Every 24 hours" },
 ];
 
 const STATUS_BORDER_COLORS: Record<string, string> = {
@@ -113,24 +104,23 @@ const CHECK_BADGE_SHORT: Record<string, string> = {
   server_status: "SERVER",
   blacklist: "BL",
   whois: "WHOIS",
-  bulk_check: "BULK",
 };
 
-// ─── Detection Helpers ────────────────────────────────────────────────────────
+// ─── Type compatibility for checks ────────────────────────────────────────────
 
-function detectType(target: string): "ip" | "domain" | "hostname" {
-  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-  const ipv4Match = target.match(ipv4Regex);
-  if (ipv4Match) {
-    const valid = ipv4Match.slice(1).every((o) => {
-      const n = parseInt(o, 10);
-      return n >= 0 && n <= 255;
-    });
-    if (valid) return "ip";
-  }
-  if (target.includes(".") && !target.includes(" ")) return "domain";
-  return "hostname";
-}
+const INCOMPATIBLE_CHECKS: Record<string, string[]> = {
+  domain: [],
+  ip: ["dns_records", "ssl", "email_security", "server_status"],
+  cidr: [
+    "domain_lookup",
+    "port_scan",
+    "dns_records",
+    "whois",
+    "ssl",
+    "email_security",
+    "server_status",
+  ],
+};
 
 // ─── Relative time ────────────────────────────────────────────────────────────
 
@@ -149,7 +139,7 @@ function relativeTime(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-// ─── Add Asset Dialog ─────────────────────────────────────────────────────────
+// ─── 3-Step Add/Edit Asset Dialog ─────────────────────────────────────────────
 
 function AddAssetDialog({
   open,
@@ -162,104 +152,113 @@ function AddAssetDialog({
   onCreated: () => void;
   initialData?: Partial<Asset>;
 }) {
+  const [step, setStep] = useState(1);
   const [name, setName] = useState(initialData?.name || "");
   const [target, setTarget] = useState(initialData?.target || "");
-  const [type, setType] = useState<"ip" | "domain" | "hostname">(
-    initialData?.type || "domain"
+  const [type, setType] = useState<"ip" | "domain" | "cidr">(
+    (initialData as any)?.type === "hostname"
+      ? "ip"
+      : (initialData?.type as "ip" | "domain" | "cidr") || "domain"
   );
   const [checks, setChecks] = useState<Record<string, boolean>>(
     initialData?.checks_enabled || {
-      ip_lookup: true,
-      domain_lookup: true,
-      port_scan: true,
-      blacklist: true,
-      dns_records: true,
-      whois: true,
-      ssl: true,
-      email_security: true,
-      server_status: true,
-      bulk_check: true,
+      ip_lookup: false,
+      domain_lookup: false,
+      port_scan: false,
+      blacklist: false,
+      dns_records: false,
+      whois: false,
+      ssl: false,
+      email_security: false,
+      server_status: false,
     }
   );
-  const [monitoringEnabled, setMonitoringEnabled] = useState(
-    initialData?.monitoring_enabled || false
-  );
-  const [checkInterval, setCheckInterval] = useState(
-    initialData?.check_interval || "default"
-  );
-  const [alertsEnabled, setAlertsEnabled] = useState(
-    initialData?.alerts_enabled || false
-  );
-  const [alertSevCritical, setAlertSevCritical] = useState(
-    initialData?.alert_severities?.includes("critical") ?? true
-  );
-  const [alertSevHigh, setAlertSevHigh] = useState(
-    initialData?.alert_severities?.includes("high") ?? true
-  );
-  const [alertSevMedium, setAlertSevMedium] = useState(
-    initialData?.alert_severities?.includes("medium") ?? false
-  );
-  const [alertSlack, setAlertSlack] = useState(
-    initialData?.alert_channels?.includes("slack") ?? false
-  );
-  const [alertDiscord, setAlertDiscord] = useState(
-    initialData?.alert_channels?.includes("discord") ?? false
+  const [checkInterval, setCheckInterval] = useState<number>(
+    initialData?.check_interval || 60
   );
   const [saving, setSaving] = useState(false);
-  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-  const supabase = createClient();
 
-  // Auto-detect type when target changes
+  // Reset step when dialog opens
   useEffect(() => {
-    if (target) {
-      setType(detectType(target));
+    if (open && !initialData) {
+      setStep(1);
+      setName("");
+      setTarget("");
+      setType("domain");
+      setChecks({
+        ip_lookup: false,
+        domain_lookup: false,
+        port_scan: false,
+        blacklist: false,
+        dns_records: false,
+        whois: false,
+        ssl: false,
+        email_security: false,
+        server_status: false,
+      });
+      setCheckInterval(60);
+      setSaving(false);
     }
-  }, [target]);
+  }, [open, initialData]);
 
-  // Fetch user settings for default values
+  // Set step to 1 for edit mode when dialog opens
   useEffect(() => {
-    if (!open) return;
-    const fetchSettings = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-      if (data) {
-        setUserSettings(data);
-      }
-    };
-    fetchSettings();
-  }, [open, supabase]);
+    if (open && initialData) {
+      setStep(1);
+      setSaving(false);
+    }
+  }, [open, initialData]);
 
-  const isFormValid = name.trim().length > 0 && target.trim().length > 0;
+  const disabledChecks = useMemo(() => {
+    return INCOMPATIBLE_CHECKS[type] || [];
+  }, [type]);
+
+  // When type changes, uncheck any checks that are now disabled
+  useEffect(() => {
+    setChecks((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const key of disabledChecks) {
+        if (next[key] === true) {
+          next[key] = false;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [disabledChecks]);
+
+  const targetPlaceholder = useMemo(() => {
+    if (type === "ip") return "e.g. 192.168.1.1";
+    if (type === "domain") return "e.g. example.com";
+    return "e.g. 192.168.1.0/24";
+  }, [type]);
+
+  const isStep1Valid =
+    name.trim().length > 0 && target.trim().length > 0 && type.length > 0;
+
+  const handleNext = () => {
+    if (step === 1 && isStep1Valid) setStep(2);
+    else if (step === 2) setStep(3);
+  };
+
+  const handleBack = () => {
+    if (step > 1) setStep(step - 1);
+  };
 
   const handleSubmit = async () => {
-    if (!isFormValid) return;
     setSaving(true);
 
-    const severities: string[] = [];
-    if (alertSevCritical) severities.push("critical");
-    if (alertSevHigh) severities.push("high");
-    if (alertSevMedium) severities.push("medium");
-
-    const channels: string[] = [];
-    if (alertSlack) channels.push("slack");
-    if (alertDiscord) channels.push("discord");
-
-    // Build the payload — for editing we PATCH, for creating we POST
     const payload = {
       name: name.trim(),
       target: target.trim(),
       type,
       checks_enabled: checks,
-      monitoring_enabled: monitoringEnabled,
+      monitoring_enabled: true,
       check_interval: checkInterval,
-      alerts_enabled: alertsEnabled,
-      alert_severities: severities,
-      alert_channels: channels,
+      alerts_enabled: false,
+      alert_severities: [],
+      alert_channels: [],
     };
 
     try {
@@ -289,18 +288,16 @@ function AddAssetDialog({
     }
   };
 
-  const slackConfigured = userSettings?.slack_webhook;
-  const discordConfigured = userSettings?.discord_webhook;
-  const hasWebhookConfig = slackConfigured || discordConfigured;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {!initialData && (
-        <DialogTrigger>
-          <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-4 w-4" />
-            Add Asset
-          </Button>
+        <DialogTrigger
+          render={
+            <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90" />
+          }
+        >
+          <Plus className="h-4 w-4" />
+          Add Asset
         </DialogTrigger>
       )}
       <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-card sm:max-w-[560px]">
@@ -308,245 +305,200 @@ function AddAssetDialog({
           <DialogTitle className="text-foreground">
             {initialData ? "Edit Asset" : "Add Asset"}
           </DialogTitle>
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 mt-2">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium transition-colors",
+                    step === s
+                      ? "bg-primary text-primary-foreground"
+                      : step > s
+                      ? "bg-primary/30 text-primary-foreground"
+                      : "bg-secondary text-muted-foreground"
+                  )}
+                >
+                  {s}
+                </div>
+                <span
+                  className={cn(
+                    "text-xs",
+                    step === s
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  Step {s} of 3
+                </span>
+                {s < 3 && <div className="h-px w-6 bg-border" />}
+              </div>
+            ))}
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="asset-name" className="text-sm text-foreground">
-              Name
-            </Label>
-            <Input
-              id="asset-name"
-              placeholder="e.g. Production Web Server"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
-            />
-          </div>
-
-          {/* Target + Type */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="asset-target" className="text-sm text-foreground">
-                Target
-              </Label>
-              <Input
-                id="asset-target"
-                placeholder="IP or domain"
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-                className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm text-foreground">Type</Label>
-              <Select
-                value={type}
-                onValueChange={(v: string | null) => v && setType(v as "ip" | "domain" | "hostname")}
-              >
-                <SelectTrigger className="border-border bg-secondary text-foreground">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-border bg-card">
-                  <SelectItem value="ip">IP</SelectItem>
-                  <SelectItem value="domain">Domain</SelectItem>
-                  <SelectItem value="hostname">Hostname</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Checks to Run */}
-          <div className="space-y-2">
-            <Label className="text-sm text-foreground">Checks to Run</Label>
-            <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-secondary/30 p-4">
-              {CHECK_OPTIONS.map((option) => (
-                <label
-                  key={option.key}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <Checkbox
-                    checked={checks[option.key] ?? true}
-                    onCheckedChange={(checked) =>
-                      setChecks((prev) => ({
-                        ...prev,
-                        [option.key]: checked === true,
-                      }))
-                    }
-                    className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                  />
-                  <span className="text-sm text-foreground">{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Separator */}
-          <div className="border-t border-border" />
-
-          {/* Enable Monitoring */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Monitor className="h-4 w-4 text-primary" />
-                <Label className="text-sm font-medium text-foreground cursor-pointer">
-                  Enable Monitoring
+          {/* Step 1 — Asset Info */}
+          {step === 1 && (
+            <>
+              {/* Name */}
+              <div className="space-y-2">
+                <Label htmlFor="asset-name" className="text-sm text-foreground">
+                  Name
                 </Label>
+                <Input
+                  id="asset-name"
+                  placeholder="e.g. My Web Server"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+                />
               </div>
-              <Switch
-                checked={monitoringEnabled}
-                onCheckedChange={setMonitoringEnabled}
-                className="data-[state=checked]:bg-primary"
-              />
-            </div>
-            {/* Animated sub-section */}
-            <div
-              className={cn(
-                "overflow-hidden transition-all duration-300",
-                monitoringEnabled ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-              )}
-            >
-              <div className="space-y-2 rounded-lg border border-border bg-secondary/30 p-4">
-                <Label className="text-sm text-foreground">Check Interval</Label>
+
+              {/* Type */}
+              <div className="space-y-2">
+                <Label className="text-sm text-foreground">Type</Label>
                 <Select
-                  value={checkInterval}
-                  onValueChange={(v: string | null) => v && setCheckInterval(v)}
+                  value={type}
+                  onValueChange={(v) =>
+                    v && setType(v as "ip" | "domain" | "cidr")
+                  }
                 >
                   <SelectTrigger className="border-border bg-secondary text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="border-border bg-card">
-                    {CHECK_INTERVALS.map((interval) => (
-                      <SelectItem key={interval.value} value={interval.value}>
-                        {interval.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="ip">IP</SelectItem>
+                    <SelectItem value="domain">Domain</SelectItem>
+                    <SelectItem value="cidr">CIDR Range</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-          </div>
 
-          {/* Enable Alerts */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-primary" />
-                <Label className="text-sm font-medium text-foreground cursor-pointer">
-                  Enable Alerts
+              {/* Target */}
+              <div className="space-y-2">
+                <Label htmlFor="asset-target" className="text-sm text-foreground">
+                  Target
                 </Label>
+                <Input
+                  id="asset-target"
+                  placeholder={targetPlaceholder}
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+                />
               </div>
-              <Switch
-                checked={alertsEnabled}
-                onCheckedChange={setAlertsEnabled}
-                className="data-[state=checked]:bg-primary"
-              />
-            </div>
-            {/* Animated sub-section */}
-            <div
-              className={cn(
-                "overflow-hidden transition-all duration-300",
-                alertsEnabled ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-              )}
-            >
-              <div className="space-y-4 rounded-lg border border-border bg-secondary/30 p-4">
-                {/* Alert on */}
-                <div className="space-y-2">
-                  <Label className="text-sm text-foreground">Alert on</Label>
-                  <div className="flex flex-wrap gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={alertSevCritical}
-                        onCheckedChange={(c) => setAlertSevCritical(c === true)}
-                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                      />
-                      <span className="text-sm text-foreground">Critical</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={alertSevHigh}
-                        onCheckedChange={(c) => setAlertSevHigh(c === true)}
-                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                      />
-                      <span className="text-sm text-foreground">High</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={alertSevMedium}
-                        onCheckedChange={(c) => setAlertSevMedium(c === true)}
-                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                      />
-                      <span className="text-sm text-foreground">Medium</span>
-                    </label>
-                  </div>
-                </div>
+            </>
+          )}
 
-                {/* Notify via */}
-                <div className="space-y-2">
-                  <Label className="text-sm text-foreground">Notify via</Label>
-                  <div className="flex flex-wrap gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
+          {/* Step 2 — Checks to Run */}
+          {step === 2 && (
+            <div className="space-y-2">
+              <Label className="text-sm text-foreground">Checks to Run</Label>
+              <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+                {CHECK_OPTIONS.map((option) => {
+                  const isDisabled = disabledChecks.includes(option.key);
+                  return (
+                    <label
+                      key={option.key}
+                      className={cn(
+                        "flex items-center gap-2",
+                        isDisabled ? "cursor-not-allowed" : "cursor-pointer"
+                      )}
+                    >
                       <Checkbox
-                        checked={alertSlack}
-                        onCheckedChange={(c) => setAlertSlack(c === true)}
-                        disabled={!slackConfigured}
-                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground disabled:opacity-50"
+                        checked={checks[option.key] ?? false}
+                        onCheckedChange={(checked) =>
+                          setChecks((prev) => ({
+                            ...prev,
+                            [option.key]: checked === true,
+                          }))
+                        }
+                        disabled={isDisabled}
+                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground disabled:opacity-40"
                       />
-                      <span className={cn("text-sm", !slackConfigured ? "text-muted-foreground" : "text-foreground")}>
-                        Slack webhook
+                      <span
+                        className={cn(
+                          "text-sm",
+                          isDisabled
+                            ? "text-muted-foreground/40"
+                            : "text-foreground"
+                        )}
+                      >
+                        {option.label}
                       </span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={alertDiscord}
-                        onCheckedChange={(c) => setAlertDiscord(c === true)}
-                        disabled={!discordConfigured}
-                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground disabled:opacity-50"
-                      />
-                      <span className={cn("text-sm", !discordConfigured ? "text-muted-foreground" : "text-foreground")}>
-                        Discord webhook
-                      </span>
-                    </label>
-                  </div>
-                  {!hasWebhookConfig && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      No webhooks configured.{" "}
-                      <a href="/settings" className="text-primary hover:underline">
-                        Configure in Settings →
-                      </a>
-                    </p>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Step 3 — Monitoring */}
+          {step === 3 && (
+            <div className="space-y-2">
+              <Label className="text-sm text-foreground">
+                How often to check this asset
+              </Label>
+              <Select
+                value={String(checkInterval)}
+                onValueChange={(v) => v && setCheckInterval(Number(v))}
+              >
+                <SelectTrigger className="border-border bg-secondary text-foreground">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-card">
+                  {CHECK_INTERVALS.map((interval) => (
+                    <SelectItem key={interval.value} value={String(interval.value)}>
+                      {interval.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            className="border-border"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!isFormValid || saving}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : initialData ? (
-              "Save Changes"
-            ) : (
-              "Submit"
+        <DialogFooter className="flex items-center justify-between">
+          <div>
+            {step > 1 && (
+              <Button
+                variant="outline"
+                className="border-border"
+                onClick={handleBack}
+              >
+                Back
+              </Button>
             )}
-          </Button>
+          </div>
+          <div className="flex gap-2">
+            {step < 3 ? (
+              <Button
+                onClick={handleNext}
+                disabled={step === 1 && !isStep1Valid}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={saving}
+                className="w-full bg-green-600 text-white hover:bg-green-700"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : initialData ? (
+                  "Save"
+                ) : (
+                  "Create"
+                )}
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -564,7 +516,9 @@ function AssetCard({
 }) {
   const router = useRouter();
   const flaggedCount = asset.checks_total - asset.checks_passed;
-  const borderClass = STATUS_BORDER_COLORS[asset.last_status] || STATUS_BORDER_COLORS.unknown;
+  const borderClass =
+    STATUS_BORDER_COLORS[asset.last_status] || STATUS_BORDER_COLORS.unknown;
+  const displayType = asset.type === "cidr" ? "CIDR" : asset.type.toUpperCase();
 
   return (
     <Card
@@ -576,15 +530,20 @@ function AssetCard({
       onClick={() => router.push(`/assets/${asset.id}`)}
     >
       <CardContent className="p-5">
-        {/* Top row: name + status badge */}
+        {/* Top row: icon + name + status badge */}
         <div className="flex items-start justify-between mb-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-foreground truncate">
-              {asset.name}
-            </p>
-            <p className="font-mono text-sm text-muted-foreground truncate mt-0.5">
-              {asset.target}
-            </p>
+          <div className="min-w-0 flex-1 flex items-center gap-3">
+            {asset.type === "cidr" && (
+              <Folder className="h-5 w-5 shrink-0 text-primary" />
+            )}
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground truncate">
+                {asset.name}
+              </p>
+              <p className="font-mono text-sm text-muted-foreground truncate mt-0.5">
+                {asset.target}
+              </p>
+            </div>
           </div>
           <Badge
             variant="outline"
@@ -593,7 +552,8 @@ function AssetCard({
               STATUS_BADGE_COLORS[asset.last_status]
             )}
           >
-            {asset.last_status.charAt(0).toUpperCase() + asset.last_status.slice(1)}
+            {asset.last_status.charAt(0).toUpperCase() +
+              asset.last_status.slice(1)}
           </Badge>
         </div>
 
@@ -603,16 +563,8 @@ function AssetCard({
             variant="outline"
             className="border-border text-[10px] text-muted-foreground px-2 py-0"
           >
-            {asset.type.toUpperCase()}
+            {displayType}
           </Badge>
-          {asset.monitoring_enabled && (
-            <Badge
-              variant="outline"
-              className="border-green-500/30 bg-green-500/10 text-[10px] text-green-500 px-2 py-0"
-            >
-              Monitoring
-            </Badge>
-          )}
         </div>
 
         {/* Threat summary */}
@@ -636,7 +588,9 @@ function AssetCard({
             }
             className={cn(
               "h-1.5",
-              flaggedCount > 0 ? "[&>div]:bg-red-500" : "[&>div]:bg-green-500"
+              flaggedCount > 0
+                ? "[&>div]:bg-red-500"
+                : "[&>div]:bg-green-500"
             )}
           />
         </div>
@@ -711,7 +665,13 @@ export default function AssetsPage() {
       const response = await fetch("/api/assets");
       if (!response.ok) throw new Error("Failed to fetch assets");
       const data = await response.json();
-      setAssets(data);
+      // Map hostname → ip for legacy assets
+      setAssets(
+        data.map((a: any) => ({
+          ...a,
+          type: a.type === "hostname" ? "ip" : a.type,
+        }))
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -740,7 +700,6 @@ export default function AssetsPage() {
   });
 
   const handleRunChecks = async (assetId: string) => {
-    // Navigate to detail page which handles running checks
     window.location.href = `/assets/${assetId}`;
   };
 

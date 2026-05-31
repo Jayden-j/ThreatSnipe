@@ -102,7 +102,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { tool } = body;
+    const { tool, target: customTarget } = body;
 
     if (!tool) {
       return NextResponse.json(
@@ -119,13 +119,16 @@ export async function POST(
       );
     }
 
+    // Use custom target if provided (for child IP checks on CIDR assets), else use asset's target
+    const effectiveTarget = customTarget || asset.target;
+
     // Determine the base URL
     const protocol = request.headers.get("x-forwarded-proto") || "http";
     const host = request.headers.get("host") || "localhost:3000";
     const baseUrl = `${protocol}://${host}`;
 
     // Build query params
-    const targetParams = getTargetParam(asset.target, asset.type, tool);
+    const targetParams = getTargetParam(effectiveTarget, asset.type, tool);
     const queryString = new URLSearchParams(targetParams).toString();
     const url = `${baseUrl}${endpoint.path}?${queryString}`;
 
@@ -148,14 +151,18 @@ export async function POST(
       status = inferStatus(tool, result);
     }
 
-    // Save to asset_results
+    // Save to asset_results — include the effective target in the result JSON for CIDR child IP matching
+    const resultWithTarget = customTarget
+      ? { ...result, target: customTarget }
+      : result;
+
     const { data: savedResult, error: saveError } = await supabase
       .from("asset_results")
       .insert({
         asset_id: id,
         user_id: user.id,
         tool_type: tool,
-        result,
+        result: resultWithTarget,
         status,
       })
       .select()

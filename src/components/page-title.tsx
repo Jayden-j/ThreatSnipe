@@ -4,8 +4,8 @@ import { usePathname } from "next/navigation";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/lookup": "IP Lookup",
-  "/domain": "Domain Lookup",
+  "/lookup": "Abuse Checker",
+  "/domain": "VirusTotal Check",
   "/ports": "Port Scanner",
   "/blacklist": "Blacklist Check",
   "/dns": "DNS Records",

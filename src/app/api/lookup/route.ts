@@ -16,6 +16,16 @@ interface AbuseIPDBResponse {
   }>;
 }
 
+interface GoogleDnsResponse {
+  Status: number;
+  Answer?: Array<{
+    name: string;
+    type: number;
+    TTL: number;
+    data: string;
+  }>;
+}
+
 function isValidIP(ip: string): boolean {
   const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
   const ipv4Match = ip.match(ipv4Regex);
@@ -28,20 +38,88 @@ function isValidIP(ip: string): boolean {
   return false;
 }
 
+function isValidDomain(domain: string): boolean {
+  return domain.length > 0 && domain.includes(".") && !domain.includes(" ") && !domain.includes(":");
+}
+
+function cleanDomain(input: string): string {
+  let cleaned = input.replace(/^https?:\/\//i, "");
+  cleaned = cleaned.split("/")[0];
+  cleaned = cleaned.replace(/\.+$/, "");
+  return cleaned.trim().toLowerCase();
+}
+
+async function resolveDomainToIP(domain: string): Promise<string> {
+  const clean = cleanDomain(domain);
+  const response = await fetch(
+    `https://dns.google/resolve?name=${encodeURIComponent(clean)}&type=A`,
+    {
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to resolve domain via Google DNS");
+  }
+
+  const data: GoogleDnsResponse = await response.json();
+
+  if (data.Status !== 0 || !data.Answer || data.Answer.length === 0) {
+    throw new Error("Domain resolution returned no A records");
+  }
+
+  // Find the first A record (type 1)
+  const aRecord = data.Answer.find((record) => record.type === 1);
+  if (!aRecord) {
+    throw new Error("No A record found for domain");
+  }
+
+  return aRecord.data;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const ip = searchParams.get("ip");
+  const input = searchParams.get("input");
 
-  if (!ip) {
+  const rawInput = input || ip || "";
+
+  if (!rawInput) {
     return NextResponse.json(
-      { error: "Missing required parameter: ip" },
+      { error: "Missing required parameter: ip or input" },
       { status: 400 }
     );
   }
 
-  if (!isValidIP(ip)) {
+  let targetIp: string;
+  let originalInput: string = rawInput;
+  let isDomain = false;
+  let resolvedIp: string | null = null;
+
+  if (isValidIP(rawInput)) {
+    targetIp = rawInput;
+  } else if (isValidDomain(rawInput)) {
+    isDomain = true;
+    originalInput = rawInput;
+    try {
+      resolvedIp = await resolveDomainToIP(rawInput);
+      targetIp = resolvedIp;
+    } catch (err) {
+      return NextResponse.json(
+        {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to resolve domain to IP address",
+        },
+        { status: 400 }
+      );
+    }
+  } else {
     return NextResponse.json(
-      { error: "Invalid IP address format" },
+      { error: "Invalid IP address or domain format" },
       { status: 400 }
     );
   }
@@ -57,7 +135,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
+      `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(targetIp)}&maxAgeInDays=90`,
       {
         headers: {
           Key: apiKey,
@@ -94,6 +172,9 @@ export async function GET(request: NextRequest) {
       isp: data.data.isp,
       totalReports: data.data.totalReports,
       lastReported: data.data.lastReportedAt,
+      originalInput: isDomain ? originalInput : undefined,
+      isDomain: isDomain || undefined,
+      resolvedIp: isDomain ? resolvedIp : undefined,
     };
 
     // Save scan to Supabase if user is authenticated
@@ -134,6 +215,7 @@ export async function GET(request: NextRequest) {
             last_reported: data.data.lastReportedAt,
             threat_level: threatLevel,
             read: false,
+            domain: isDomain ? originalInput : null,
           })
           .select("id")
           .single();
@@ -163,6 +245,7 @@ export async function GET(request: NextRequest) {
                 country: data.data.countryCode,
                 isp: data.data.isp,
                 threat_level: threatLevel,
+                domain: isDomain ? originalInput : undefined,
               },
             });
           } catch (alertError) {

@@ -27,6 +27,7 @@ interface DomainResult {
   categories: string[];
   lastAnalysisDate: string;
   verdict: "CLEAN" | "SUSPICIOUS" | "MALICIOUS";
+  inputType?: "domain" | "ip";
 }
 
 function getVerdictBadge(verdict: DomainResult["verdict"]) {
@@ -109,13 +110,14 @@ function DomainForm() {
 
     const trimmedDomain = domainInput.trim();
     if (!trimmedDomain) {
-      setError("Please enter a domain or URL");
+      setError("Please enter a domain or IP address");
       return;
     }
 
-    // Basic validation: must contain a dot
-    if (!trimmedDomain.includes(".")) {
-      setError("Invalid domain or URL");
+    // Basic validation: must be an IP or contain a dot
+    const isIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(trimmedDomain);
+    if (!isIp && !trimmedDomain.includes(".")) {
+      setError("Invalid domain or IP address");
       return;
     }
 
@@ -147,7 +149,7 @@ function DomainForm() {
     : 0;
   const flaggedCount = result ? result.malicious + result.suspicious : 0;
   const vtUrl = result
-    ? `https://www.virustotal.com/gui/domain/${result.domain}`
+    ? `https://www.virustotal.com/gui/${result.inputType === "ip" ? "ip-address" : "domain"}/${result.domain}`
     : "#";
 
   return (
@@ -155,10 +157,10 @@ function DomainForm() {
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
           <Globe className="h-6 w-6 text-primary" />
-          Domain Lookup
+          VirusTotal Check
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Check the reputation of a domain or URL using VirusTotal.
+          Check the reputation of a domain, URL, or IP address using VirusTotal.
         </p>
       </div>
 
@@ -167,7 +169,7 @@ function DomainForm() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="example.com or https://example.com"
+            placeholder="Enter domain or IP address"
             value={domainInput}
             onChange={(e) => setDomainInput(e.target.value)}
             className="border-border bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
@@ -185,7 +187,7 @@ function DomainForm() {
               Scanning
             </>
           ) : (
-            "Scan Domain"
+            "Scan"
           )}
         </Button>
       </form>
@@ -216,11 +218,26 @@ function DomainForm() {
             {/* Header with domain, verdict, and reputation score */}
             <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-xl font-semibold text-foreground">
-                  {result.domain}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="font-mono text-xl font-semibold text-foreground">
+                    {result.domain}
+                  </p>
+                  {result.inputType && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "border-border text-xs font-normal",
+                        result.inputType === "ip"
+                          ? "text-blue-400"
+                          : "text-cyan-400"
+                      )}
+                    >
+                      {result.inputType === "ip" ? "IP" : "Domain"}
+                    </Badge>
+                  )}
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {flaggedCount} of {totalVendors} security vendors flagged this domain
+                  {flaggedCount} of {totalVendors} security vendors flagged this {result.inputType || "domain"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -314,7 +331,7 @@ export default function DomainPage() {
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
               <Globe className="h-6 w-6 text-primary" />
-              Domain Lookup
+              VirusTotal Check
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Check the reputation of a domain or URL using VirusTotal.

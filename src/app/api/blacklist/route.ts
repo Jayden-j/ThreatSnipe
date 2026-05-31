@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { resolve } from "dns/promises";
 
 // ─── DNSBL Providers ──────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ const DNSBL_PROVIDERS: DnsblProvider[] = [
   { name: "RBL DNSBL",           domain: "rbl.dnsbl.net",             description: "RBL DNSBL", anyReturnMeansListed: true },
 ];
 
-export const maxDuration = 60; // DNSBL checks can be slow
+export const maxDuration = 60;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,10 +122,20 @@ interface BlacklistResult {
 interface BlacklistResponse {
   ip: string;
   reversedIp: string;
+  type: "ip" | "domain";
   totalProviders: number;
   listedCount: number;
   results: BlacklistResult[];
-  error?: string;
+}
+
+/** Shape of each JSON line streamed for CIDR checks */
+interface CidrStreamLine {
+  ip: string;
+  totalIps: number;
+  currentIp: number;
+  listedCount: number;
+  providers: string[];
+  returnCodes: Array<{ provider: string; code: string | null; label: string | null }>;
 }
 
 // ─── Spamhaus Return Code Labels ──────────────────────────────────────────────
@@ -157,15 +167,17 @@ function isValidIP(ip: string): boolean {
   });
 }
 
+function isValidDomain(domain: string): boolean {
+  return domain.length > 0 && domain.includes(".");
+}
+
 function mapReturnCode(providerName: string, returnIp: string): { code: string | null; label: string | null } {
   if (!returnIp) return { code: null, label: null };
 
-  // Check for Spamhaus-specific codes
   if (providerName.startsWith("Spamhaus") && SPAMHAUS_CODES[returnIp]) {
     return { code: returnIp, label: SPAMHAUS_CODES[returnIp] };
   }
 
-  // Generic mapping
   if (returnIp.startsWith("127.")) {
     return { code: returnIp, label: `Listed (${returnIp})` };
   }
@@ -173,9 +185,51 @@ function mapReturnCode(providerName: string, returnIp: string): { code: string |
   return { code: returnIp, label: `Listed (${returnIp})` };
 }
 
-async function checkDnsbl(ip: string, provider: DnsblProvider): Promise<BlacklistResult> {
-  const reversedIp = reverseIp(ip);
-  const lookupDomain = `${reversedIp}.${provider.domain}`;
+/** Expand a CIDR string (e.g. "192.168.1.0/24") into individual IPs */
+function expandCidr(cidr: string): { ips: string[]; error?: string } {
+  const match = cidr.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/);
+  if (!match) return { ips: [], error: "Invalid CIDR format. Use e.g. 192.168.1.0/24" };
+
+  const a = parseInt(match[1], 10);
+  const b = parseInt(match[2], 10);
+  const c = parseInt(match[3], 10);
+  const d = parseInt(match[4], 10);
+  const mask = parseInt(match[5], 10);
+
+  if (a > 255 || b > 255 || c > 255 || d > 255) {
+    return { ips: [], error: "Invalid octet value in CIDR" };
+  }
+  if (mask < 0 || mask > 32) {
+    return { ips: [], error: "Invalid subnet mask" };
+  }
+  if (mask < 24) {
+    return { ips: [], error: "CIDR range too large — maximum /24 (256 IPs)" };
+  }
+
+  const hostBits = 32 - mask;
+  const count = 1 << hostBits;
+
+  const ipBase = (a << 24) + (b << 16) + (c << 8) + d;
+  const networkBase = ipBase & (0xffffffff << hostBits);
+
+  const ips: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const val = networkBase + i;
+    ips.push([
+      (val >>> 24) & 0xff,
+      (val >>> 16) & 0xff,
+      (val >>> 8) & 0xff,
+      val & 0xff,
+    ].join("."));
+  }
+
+  return { ips };
+}
+
+async function checkDnsbl(ip: string, provider: DnsblProvider, isDomain: boolean): Promise<BlacklistResult> {
+  const lookupDomain = isDomain
+    ? `${ip}.${provider.domain}`   // direct: domain.provider
+    : `${reverseIp(ip)}.${provider.domain}`;  // reversed: reversed-ip.provider
 
   try {
     const addresses = await resolve(lookupDomain);
@@ -191,7 +245,6 @@ async function checkDnsbl(ip: string, provider: DnsblProvider): Promise<Blacklis
       };
     }
 
-    // Take the first returned IP
     const returnIp = addresses[0];
 
     if (provider.anyReturnMeansListed) {
@@ -206,7 +259,6 @@ async function checkDnsbl(ip: string, provider: DnsblProvider): Promise<Blacklis
       };
     }
 
-    // For providers where only 127.0.0.x means listed
     if (returnIp.startsWith("127.")) {
       const { code, label } = mapReturnCode(provider.name, returnIp);
       return {
@@ -228,7 +280,6 @@ async function checkDnsbl(ip: string, provider: DnsblProvider): Promise<Blacklis
       returnLabel: null,
     };
   } catch (err: unknown) {
-    // NXDOMAIN or other DNS errors = not listed (for most providers)
     const nodeErr = err as NodeJS.ErrnoException;
     if (nodeErr.code === "ENOTFOUND" || nodeErr.code === "ENODATA") {
       return {
@@ -241,7 +292,6 @@ async function checkDnsbl(ip: string, provider: DnsblProvider): Promise<Blacklis
       };
     }
 
-    // Server failure or timeout — treat as "could not check"
     return {
       provider: provider.name,
       domain: provider.domain,
@@ -253,38 +303,254 @@ async function checkDnsbl(ip: string, provider: DnsblProvider): Promise<Blacklis
   }
 }
 
-// ─── GET Handler ──────────────────────────────────────────────────────────────
+/** Check all providers for a single IP with concurrency batching */
+async function checkIpAgainstAllProviders(ip: string, isDomain: boolean): Promise<{
+  listedCount: number;
+  providers: string[];
+  returnCodes: Array<{ provider: string; code: string | null; label: string | null }>;
+}> {
+  const CONCURRENCY = 15;
+  const results: BlacklistResult[] = [];
+
+  for (let i = 0; i < DNSBL_PROVIDERS.length; i += CONCURRENCY) {
+    const batch = DNSBL_PROVIDERS.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map((provider) => checkDnsbl(ip, provider, isDomain))
+    );
+    results.push(...batchResults);
+  }
+
+  const listed = results.filter((r) => r.listed);
+  return {
+    listedCount: listed.length,
+    providers: listed.map((r) => r.provider),
+    returnCodes: listed.map((r) => ({
+      provider: r.provider,
+      code: r.returnCode,
+      label: r.returnLabel,
+    })),
+  };
+}
+
+// ─── POST Handler ─────────────────────────────────────────────────────────────
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { type, target } = body as { type?: string; target?: string };
+
+    if (!type || !target) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: type, target" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const trimmed = String(target).trim();
+
+    if (type === "ip") {
+      if (!isValidIP(trimmed)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid IPv4 address" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      const CONCURRENCY = 15;
+      const results: BlacklistResult[] = [];
+
+      for (let i = 0; i < DNSBL_PROVIDERS.length; i += CONCURRENCY) {
+        const batch = DNSBL_PROVIDERS.slice(i, i + CONCURRENCY);
+        const batchResults = await Promise.all(
+          batch.map((provider) => checkDnsbl(trimmed, provider, false))
+        );
+        results.push(...batchResults);
+      }
+
+      const response: BlacklistResponse = {
+        ip: trimmed,
+        reversedIp: reverseIp(trimmed),
+        type: "ip",
+        totalProviders: results.length,
+        listedCount: results.filter((r) => r.listed).length,
+        results,
+      };
+
+      return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (type === "domain") {
+      if (!isValidDomain(trimmed)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid domain" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      const results: BlacklistResult[] = [];
+      const CONCURRENCY = 15;
+
+      for (let i = 0; i < DNSBL_PROVIDERS.length; i += CONCURRENCY) {
+        const batch = DNSBL_PROVIDERS.slice(i, i + CONCURRENCY);
+        const batchResults = await Promise.all(
+          batch.map((provider) => checkDnsbl(trimmed, provider, true))
+        );
+        results.push(...batchResults);
+      }
+
+      const response: BlacklistResponse = {
+        ip: trimmed,
+        reversedIp: "",
+        type: "domain",
+        totalProviders: results.length,
+        listedCount: results.filter((r) => r.listed).length,
+        results,
+      };
+
+      return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (type === "cidr") {
+      const { ips, error } = expandCidr(trimmed);
+      if (error) {
+        return new Response(
+          JSON.stringify({ error }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (ips.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "No IPs in range" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Stream JSON lines back
+      const stream = new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder();
+          const totalIps = ips.length;
+          const IP_CONCURRENCY = 20; // process 20 IPs at a time
+
+          try {
+            for (let i = 0; i < ips.length; i += IP_CONCURRENCY) {
+              const batch = ips.slice(i, i + IP_CONCURRENCY);
+              const batchResults = await Promise.allSettled(
+                batch.map(async (ip) => {
+                  const result = await checkIpAgainstAllProviders(ip, false);
+                  return { ip, result };
+                })
+              );
+
+              for (const settled of batchResults) {
+                if (settled.status === "fulfilled") {
+                  const { ip, result: ipResult } = settled.value;
+                  const line: CidrStreamLine = {
+                    ip,
+                    totalIps,
+                    currentIp: ips.indexOf(ip) + 1,
+                    listedCount: ipResult.listedCount,
+                    providers: ipResult.providers,
+                    returnCodes: ipResult.returnCodes,
+                  };
+                  controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+                }
+                // On rejection, we still send an error line so the client
+                // can track progress and show the error
+                if (settled.status === "rejected") {
+                  // Find a placeholder ip — not perfect, but rare
+                  const idx = batchResults.indexOf(settled);
+                  const fallbackIp = batch[idx] ?? "unknown";
+                  const errorLine: CidrStreamLine & { error: string } = {
+                    ip: fallbackIp,
+                    totalIps,
+                    currentIp: ips.indexOf(fallbackIp) + 1,
+                    listedCount: 0,
+                    providers: [],
+                    returnCodes: [],
+                    error: "Check failed",
+                  };
+                  controller.enqueue(encoder.encode(JSON.stringify(errorLine) + "\n"));
+                }
+              }
+            }
+
+            // Sentinel to mark completion
+            controller.enqueue(
+              encoder.encode(JSON.stringify({ type: "dnsbl-complete", totalIps }) + "\n")
+            );
+          } catch (err) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({ type: "dnsbl-error", error: String(err) }) + "\n"
+              )
+            );
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/x-ndjson",
+          "X-Accel-Buffering": "no",
+          "Cache-Control": "no-cache",
+        },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({ error: `Invalid type: ${type}. Use "ip", "domain", or "cidr".` }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Blacklist check error:", error);
+    return new Response(
+      JSON.stringify({ error: "Failed to complete blacklist check" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
+
+// ─── GET Handler (legacy) ────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const hostname = searchParams.get("hostname");
 
   if (!hostname) {
-    return NextResponse.json(
-      { error: "Missing required parameter: hostname" },
-      { status: 400 }
+    return new Response(
+      JSON.stringify({ error: "Missing required parameter: hostname" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
 
   const trimmed = hostname.trim();
 
-  // We only support IP addresses for DNSBL checking
   if (!isValidIP(trimmed)) {
-    return NextResponse.json(
-      { error: "DNSBL blacklist check requires a valid IPv4 address. For domains, use the Domain Lookup tool with VirusTotal." },
-      { status: 400 }
+    return new Response(
+      JSON.stringify({ error: "DNSBL blacklist check requires a valid IPv4 address." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
 
   try {
-    // Run all DNSBL checks concurrently (with connection pooling limits)
     const CONCURRENCY = 15;
     const results: BlacklistResult[] = [];
 
     for (let i = 0; i < DNSBL_PROVIDERS.length; i += CONCURRENCY) {
       const batch = DNSBL_PROVIDERS.slice(i, i + CONCURRENCY);
       const batchResults = await Promise.all(
-        batch.map((provider) => checkDnsbl(trimmed, provider))
+        batch.map((provider) => checkDnsbl(trimmed, provider, false))
       );
       results.push(...batchResults);
     }
@@ -294,17 +560,21 @@ export async function GET(request: NextRequest) {
     const response: BlacklistResponse = {
       ip: trimmed,
       reversedIp: reverseIp(trimmed),
+      type: "ip",
       totalProviders: results.length,
       listedCount,
       results,
     };
 
-    return NextResponse.json(response);
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("DNSBL check error:", error);
-    return NextResponse.json(
-      { error: "Failed to complete blacklist check" },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: "Failed to complete blacklist check" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }

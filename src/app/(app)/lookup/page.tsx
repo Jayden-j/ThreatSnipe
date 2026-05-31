@@ -15,6 +15,9 @@ interface LookupResult {
   isp: string;
   totalReports: number;
   lastReported: string | null;
+  originalInput?: string;
+  isDomain?: boolean;
+  resolvedIp?: string;
 }
 
 function LookupForm() {
@@ -32,7 +35,7 @@ function LookupForm() {
       setIpInput(ip);
       // Auto-trigger the scan
       setLoading(true);
-      fetch(`/api/lookup?ip=${encodeURIComponent(ip)}`)
+      fetch(`/api/lookup?input=${encodeURIComponent(ip)}`)
         .then(async (response) => {
           if (!response.ok) {
             const errorData = await response.json().catch(() => null);
@@ -59,7 +62,7 @@ function LookupForm() {
 
     const trimmedIp = ipInput.trim();
     if (!trimmedIp) {
-      setError("Please enter an IP address");
+      setError("Please enter an IP address or domain");
       return;
     }
 
@@ -67,7 +70,7 @@ function LookupForm() {
 
     try {
       const response = await fetch(
-        `/api/lookup?ip=${encodeURIComponent(trimmedIp)}`
+        `/api/lookup?input=${encodeURIComponent(trimmedIp)}`
       );
 
       if (!response.ok) {
@@ -89,9 +92,9 @@ function LookupForm() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">IP Lookup</h1>
+        <h1 className="text-2xl font-bold text-foreground">Abuse Checker</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Check the reputation of an IP address using AbuseIPDB.
+          Check the reputation of an IP address or domain using AbuseIPDB.
         </p>
       </div>
 
@@ -100,7 +103,7 @@ function LookupForm() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Enter an IP address (e.g. 8.8.8.8)"
+            placeholder="Enter IP address or domain"
             value={ipInput}
             onChange={(e) => setIpInput(e.target.value)}
             className="border-border bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
@@ -153,7 +156,7 @@ export default function LookupPage() {
     <Suspense fallback={
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">IP Lookup</h1>
+          <h1 className="text-2xl font-bold text-foreground">Abuse Checker</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Check the reputation of an IP address using AbuseIPDB.
           </p>

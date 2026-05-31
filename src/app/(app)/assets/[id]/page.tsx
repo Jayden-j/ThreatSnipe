@@ -11,6 +11,13 @@ import { StatCard } from "@/components/stat-card";
 import { IpResultCard } from "@/components/ip-result-card";
 import { CopyButton } from "@/components/copy-button";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
   Loader2,
   ArrowLeft,
   Trash2,
@@ -38,6 +45,7 @@ import {
   FileKey,
   Wifi,
   ArrowRight,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -57,7 +65,10 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import dynamic from "next/dynamic";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -66,10 +77,10 @@ interface Asset {
   id: string;
   name: string;
   target: string;
-  type: "ip" | "domain" | "hostname";
+  type: "ip" | "domain" | "cidr";
   checks_enabled: Record<string, boolean>;
   monitoring_enabled: boolean;
-  check_interval: string;
+  check_interval: number;
   alerts_enabled: boolean;
   alert_severities: string[];
   alert_channels: string[];
@@ -104,8 +115,8 @@ const BlacklistChart = dynamic(
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const TOOL_TABS = [
-  { key: "ip_lookup", label: "IP Lookup" },
-  { key: "domain_lookup", label: "Domain" },
+  { key: "ip_lookup", label: "Abuse Checker" },
+  { key: "domain_lookup", label: "VirusTotal Check" },
   { key: "port_scan", label: "Port Scan" },
   { key: "blacklist", label: "Blacklist" },
   { key: "dns_records", label: "DNS Records" },
@@ -131,6 +142,13 @@ const STATUS_LABELS: Record<string, string> = {
   error: "❌ Error",
 };
 
+const CHILD_STATUS_BADGE: Record<string, string> = {
+  clean: "border-green-500/30 bg-green-500/10 text-green-500",
+  suspicious: "border-yellow-500/30 bg-yellow-500/10 text-yellow-500",
+  threat: "border-red-500/30 bg-red-500/10 text-red-500",
+  unknown: "border-gray-500/30 bg-gray-500/10 text-gray-400",
+};
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function relativeTime(dateStr: string | null): string {
@@ -153,6 +171,37 @@ function httpStatusColor(code: number | null): string {
   if (code >= 200 && code < 300) return "border-green-500/30 bg-green-500/10 text-green-500";
   if (code >= 300 && code < 400) return "border-yellow-500/30 bg-yellow-500/10 text-yellow-500";
   return "border-red-500/30 bg-red-500/10 text-red-500";
+}
+
+// ─── CIDR Expansion ────────────────────────────────────────────────────────────
+
+function expandCIDR(cidr: string): string[] {
+  const [base, bitsStr] = cidr.split("/");
+  const bits = parseInt(bitsStr, 10);
+  if (!base || isNaN(bits) || bits < 0 || bits > 32) return [];
+
+  const parts = base.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return [];
+
+  const ipNum =
+    ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+  const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+  const networkStart = (ipNum & mask) >>> 0;
+  const hostCount = bits === 32 ? 1 : Math.pow(2, 32 - bits);
+
+  const ips: string[] = [];
+  for (let i = 0; i < hostCount; i++) {
+    const addr = (networkStart + i) >>> 0;
+    ips.push(
+      [
+        (addr >>> 24) & 255,
+        (addr >>> 16) & 255,
+        (addr >>> 8) & 255,
+        addr & 255,
+      ].join(".")
+    );
+  }
+  return ips;
 }
 
 // ─── Tab Result Renderers ──────────────────────────────────────────────────────
@@ -215,7 +264,6 @@ function DomainLookupResult({ result }: { result: any }) {
 
 function PortScanResult({ result }: { result: any }) {
   if (!result || result.error) return <p className="text-sm text-muted-foreground">{result?.error || "No results"}</p>;
-  // Result likely contains port data
   return (
     <Card className="border-border bg-card">
       <CardContent className="p-6">
@@ -539,7 +587,7 @@ function TabContent({
   return <Renderer result={result.result} />;
 }
 
-// ─── AddAssetDialog (reused from parent) ───────────────────────────────────────
+// ─── 3-Step Add/Edit Asset Dialog ─────────────────────────────────────────────
 
 function AddAssetDialog({
   open,
@@ -552,9 +600,290 @@ function AddAssetDialog({
   onCreated: () => void;
   initialData?: Partial<Asset>;
 }) {
-  // Imported from the assets page - simplified version
   const router = useRouter();
-  return null; // We'll render a simpler edit button instead
+  const [step, setStep] = useState(1);
+  const [name, setName] = useState(initialData?.name || "");
+  const [target, setTarget] = useState(initialData?.target || "");
+  const [type, setType] = useState<"ip" | "domain" | "cidr">(
+    (initialData as any)?.type === "hostname"
+      ? "ip"
+      : (initialData?.type as "ip" | "domain" | "cidr") || "domain"
+  );
+  const [checks, setChecks] = useState<Record<string, boolean>>(
+    initialData?.checks_enabled || {
+      ip_lookup: false,
+      domain_lookup: false,
+      port_scan: false,
+      blacklist: false,
+      dns_records: false,
+      whois: false,
+      ssl: false,
+      email_security: false,
+      server_status: false,
+    }
+  );
+  const [checkInterval, setCheckInterval] = useState<number>(
+    initialData?.check_interval || 60
+  );
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open && !initialData) {
+      setStep(1);
+      setName("");
+      setTarget("");
+      setType("domain");
+      setChecks({
+        ip_lookup: false,
+        domain_lookup: false,
+        port_scan: false,
+        blacklist: false,
+        dns_records: false,
+        whois: false,
+        ssl: false,
+        email_security: false,
+        server_status: false,
+      });
+      setCheckInterval(60);
+      setSaving(false);
+    }
+  }, [open, initialData]);
+
+  useEffect(() => {
+    if (open && initialData) {
+      setStep(1);
+      setSaving(false);
+    }
+  }, [open, initialData]);
+
+  const INCOMPATIBLE_CHECKS: Record<string, string[]> = {
+    domain: [],
+    ip: ["dns_records", "ssl", "email_security", "server_status"],
+    cidr: [
+      "domain_lookup",
+      "port_scan",
+      "dns_records",
+      "whois",
+      "ssl",
+      "email_security",
+      "server_status",
+    ],
+  };
+
+  const disabledChecks = INCOMPATIBLE_CHECKS[type] || [];
+
+  useEffect(() => {
+    setChecks((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const key of disabledChecks) {
+        if (next[key] === true) {
+          next[key] = false;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [type]);
+
+  const CHECK_OPTIONS: { key: string; label: string }[] = [
+    { key: "ip_lookup", label: "Abuse Checker" },
+    { key: "domain_lookup", label: "VirusTotal Check" },
+    { key: "port_scan", label: "Port Scanner" },
+    { key: "blacklist", label: "Blacklist Check" },
+    { key: "dns_records", label: "DNS Records" },
+    { key: "whois", label: "WHOIS Lookup" },
+    { key: "ssl", label: "SSL Checker" },
+    { key: "email_security", label: "Email Security" },
+    { key: "server_status", label: "Server Status" },
+  ];
+
+  const CHECK_INTERVALS = [
+    { value: 5, label: "Every 5 minutes" },
+    { value: 10, label: "Every 10 minutes" },
+    { value: 15, label: "Every 15 minutes" },
+    { value: 30, label: "Every 30 minutes" },
+    { value: 60, label: "Every 1 hour" },
+    { value: 180, label: "Every 3 hours" },
+    { value: 360, label: "Every 6 hours" },
+    { value: 720, label: "Every 12 hours" },
+    { value: 1440, label: "Every 24 hours" },
+  ];
+
+  const targetPlaceholder = type === "ip" ? "e.g. 192.168.1.1" : type === "domain" ? "e.g. example.com" : "e.g. 192.168.1.0/24";
+  const isStep1Valid = name.trim().length > 0 && target.trim().length > 0;
+
+  const handleNext = () => {
+    if (step === 1 && isStep1Valid) setStep(2);
+    else if (step === 2) setStep(3);
+  };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    const payload = {
+      name: name.trim(),
+      target: target.trim(),
+      type,
+      checks_enabled: checks,
+      monitoring_enabled: true,
+      check_interval: checkInterval,
+      alerts_enabled: false,
+      alert_severities: [],
+      alert_channels: [],
+    };
+    try {
+      if (initialData?.id) {
+        const response = await fetch(`/api/assets/${initialData.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) throw new Error("Failed to update asset");
+      } else {
+        const response = await fetch("/api/assets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) throw new Error("Failed to create asset");
+      }
+      onCreated();
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-card sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">{initialData ? "Edit Asset" : "Add Asset"}</DialogTitle>
+          <div className="flex items-center gap-2 mt-2">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium transition-colors",
+                    step === s
+                      ? "bg-primary text-primary-foreground"
+                      : step > s
+                      ? "bg-primary/30 text-primary-foreground"
+                      : "bg-secondary text-muted-foreground"
+                  )}
+                >
+                  {s}
+                </div>
+                <span className={cn("text-xs", step === s ? "text-foreground font-medium" : "text-muted-foreground")}>
+                  Step {s} of 3
+                </span>
+                {s < 3 && <div className="h-px w-6 bg-border" />}
+              </div>
+            ))}
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          {step === 1 && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="asset-name" className="text-sm text-foreground">Name</Label>
+                <Input
+                  id="asset-name"
+                  placeholder="e.g. My Web Server"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm text-foreground">Type</Label>
+                <Select value={type} onValueChange={(v) => v && setType(v as "ip" | "domain" | "cidr")}>
+                  <SelectTrigger className="border-border bg-secondary text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-border bg-card">
+                    <SelectItem value="ip">IP</SelectItem>
+                    <SelectItem value="domain">Domain</SelectItem>
+                    <SelectItem value="cidr">CIDR Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="asset-target" className="text-sm text-foreground">Target</Label>
+                <Input
+                  id="asset-target"
+                  placeholder={targetPlaceholder}
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+                />
+              </div>
+            </>
+          )}
+          {step === 2 && (
+            <div className="space-y-2">
+              <Label className="text-sm text-foreground">Checks to Run</Label>
+              <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+                {CHECK_OPTIONS.map((option) => {
+                  const isDisabled = disabledChecks.includes(option.key);
+                  return (
+                    <label key={option.key} className={cn("flex items-center gap-2", isDisabled ? "cursor-not-allowed" : "cursor-pointer")}>
+                      <Checkbox
+                        checked={checks[option.key] ?? false}
+                        onCheckedChange={(checked) => setChecks((prev) => ({ ...prev, [option.key]: checked === true }))}
+                        disabled={isDisabled}
+                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground disabled:opacity-40"
+                      />
+                      <span className={cn("text-sm", isDisabled ? "text-muted-foreground/40" : "text-foreground")}>{option.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="space-y-2">
+              <Label className="text-sm text-foreground">How often to check this asset</Label>
+              <Select value={String(checkInterval)} onValueChange={(v) => v && setCheckInterval(Number(v))}>
+                <SelectTrigger className="border-border bg-secondary text-foreground">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-card">
+                  {CHECK_INTERVALS.map((interval) => (
+                    <SelectItem key={interval.value} value={String(interval.value)}>{interval.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex items-center justify-between">
+          <div>{step > 1 && <Button variant="outline" className="border-border" onClick={() => setStep(step - 1)}>Back</Button>}</div>
+          <div className="flex gap-2">
+            {step < 3 ? (
+              <Button onClick={handleNext} disabled={step === 1 && !isStep1Valid} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                Next
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={saving} className="w-full bg-green-600 text-white hover:bg-green-700">
+                {saving ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                ) : initialData ? (
+                  "Save"
+                ) : (
+                  "Create"
+                )}
+              </Button>
+            )}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ─── Asset Detail Page ─────────────────────────────────────────────────────────
@@ -573,13 +902,21 @@ export default function AssetDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [blacklistHistory, setBlacklistHistory] = useState<any[]>([]);
+  // CIDR state
+  const [selectedChildIp, setSelectedChildIp] = useState<string | null>(null);
+  const [cidrIps, setCidrIps] = useState<string[]>([]);
+  const [childRunningChecks, setChildRunningChecks] = useState(false);
 
   const fetchAsset = useCallback(async () => {
     try {
       const response = await fetch(`/api/assets/${id}`);
       if (!response.ok) throw new Error("Failed to fetch asset");
       const data: AssetDetailResponse = await response.json();
-      setAsset(data.asset);
+      const loadedAsset = {
+        ...data.asset,
+        type: ((["hostname"] as string[]).includes((data.asset as any).type) ? "ip" : data.asset.type) as "ip" | "domain" | "cidr",
+      };
+      setAsset(loadedAsset);
       setResults(data.results || {});
     } catch (err) {
       console.error(err);
@@ -591,6 +928,13 @@ export default function AssetDetailPage() {
   useEffect(() => {
     fetchAsset();
   }, [fetchAsset]);
+
+  // Expand CIDR range when asset is loaded
+  useEffect(() => {
+    if (asset?.type === "cidr") {
+      setCidrIps(expandCIDR(asset.target));
+    }
+  }, [asset]);
 
   // Fetch blacklist history for chart
   useEffect(() => {
@@ -612,10 +956,165 @@ export default function AssetDetailPage() {
         }
       } catch {}
     };
-    if (asset.type === "ip" || asset.type === "hostname") {
+    if (asset.type === "ip") {
       fetchHistory();
     }
   }, [asset, id]);
+
+  // ─── CIDR child IP helpers ─────────────────────────────────────────────────
+
+  function getChildIpResults(ip: string): { tool_type: string; result: AssetResult }[] {
+    return Object.entries(results)
+      .filter(([, r]) => r.result?.target === ip)
+      .map(([toolType, r]) => ({ tool_type: toolType, result: r }));
+  }
+
+  function getChildIpStatus(ip: string): { status: string; checked_at: string | null; flagged: number; total: number } {
+    const ipResults = getChildIpResults(ip);
+    if (ipResults.length === 0) {
+      return { status: "unknown", checked_at: null, flagged: 0, total: 0 };
+    }
+    let overallStatus = "clean";
+    let flagged = 0;
+    for (const r of ipResults) {
+      if (r.result.status === "threat") {
+        overallStatus = "threat";
+        flagged++;
+      } else if (r.result.status === "suspicious" && overallStatus !== "threat") {
+        overallStatus = "suspicious";
+        flagged++;
+      } else if (r.result.status === "error") {
+        overallStatus = "unknown";
+        flagged++;
+      }
+    }
+    const latestCheck = ipResults
+      .map((r) => r.result.checked_at)
+      .filter(Boolean)
+      .sort()
+      .reverse()[0] || null;
+    return { status: overallStatus, checked_at: latestCheck, flagged, total: ipResults.length };
+  }
+
+  // ─── Child IP Sheet tab results ────────────────────────────────────────────
+
+  function getChildIpTabResults(ip: string): Record<string, AssetResult> {
+    const ipResults: Record<string, AssetResult> = {};
+    for (const [toolType, r] of Object.entries(results)) {
+      if (r.result?.target === ip) {
+        ipResults[toolType] = r;
+      }
+    }
+    return ipResults;
+  }
+
+  // ─── Run checks on a child IP ──────────────────────────────────────────────
+
+  const handleRunChildIpChecks = async (ip: string) => {
+    if (!asset) return;
+    setChildRunningChecks(true);
+
+    const enabledTools = Object.entries(asset.checks_enabled)
+      .filter(([, enabled]) => enabled)
+      .map(([key]) => key);
+
+    for (let i = 0; i < enabledTools.length; i++) {
+      const tool = enabledTools[i];
+      try {
+        const response = await fetch(`/api/assets/${id}/check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tool, target: ip }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Refresh results
+          const refresh = await fetch(`/api/assets/${id}`);
+          if (refresh.ok) {
+            const refreshData = await refresh.json();
+            setResults(refreshData.results || {});
+          }
+        }
+      } catch (err) {
+        console.error(`Check failed for ${ip}/${tool}:`, err);
+      }
+    }
+    setChildRunningChecks(false);
+  };
+
+  // ─── Run all checks on CIDR asset ──────────────────────────────────────────
+
+  const handleRunCidrAllChecks = async () => {
+    if (!asset) return;
+    setRunningChecks(true);
+
+    const enabledTools = Object.entries(asset.checks_enabled)
+      .filter(([, enabled]) => enabled)
+      .map(([key]) => key);
+
+    setCheckProgress({ current: 0, total: cidrIps.length });
+
+    for (let i = 0; i < cidrIps.length; i++) {
+      const ip = cidrIps[i];
+      setCheckProgress({ current: i + 1, total: cidrIps.length });
+
+      for (const tool of enabledTools) {
+        try {
+          const response = await fetch(`/api/assets/${id}/check`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tool, target: ip }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setResults((prev) => ({
+              ...prev,
+              [`${tool}-${ip}`]: {
+                id: data.saved ? "saved" : "",
+                asset_id: id,
+                tool_type: tool,
+                result: data.result,
+                status: data.status,
+                checked_at: new Date().toISOString(),
+              },
+            }));
+          }
+        } catch (err) {
+          console.error(`Check failed for ${ip}/${tool}:`, err);
+        }
+      }
+    }
+
+    // Update asset stats
+    const allStatuses: string[] = [];
+    let totalFlagged = 0;
+    let totalCount = 0;
+    for (const ip of cidrIps) {
+      const s = getChildIpStatus(ip);
+      allStatuses.push(s.status);
+      totalFlagged += s.flagged;
+      totalCount += s.total;
+    }
+    let overallStatus: "clean" | "suspicious" | "threat" | "unknown" = "clean";
+    if (allStatuses.some((s) => s === "threat")) overallStatus = "threat";
+    else if (allStatuses.some((s) => s === "suspicious")) overallStatus = "suspicious";
+    else if (totalCount === 0) overallStatus = "unknown";
+
+    setAsset((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        last_checked_at: new Date().toISOString(),
+        last_status: overallStatus,
+        checks_passed: totalCount - totalFlagged,
+        checks_total: totalCount,
+      };
+    });
+
+    setRunningChecks(false);
+  };
+
+  // ─── Run checks (non-CIDR) ─────────────────────────────────────────────────
 
   const handleRunAllChecks = async () => {
     if (!asset) return;
@@ -656,12 +1155,10 @@ export default function AssetDetailPage() {
       }
     }
 
-    // Update asset stats after all checks
     const completedResults = Object.values(newResults).filter((r) => r.id || r.result);
     const flaggedCount = completedResults.filter((r) => r.status === "threat" || r.status === "suspicious").length;
     const totalCount = completedResults.length;
 
-    // Determine overall status
     let overallStatus: "clean" | "suspicious" | "threat" | "unknown" = "unknown";
     const threatCount = completedResults.filter((r) => r.status === "threat").length;
     const suspiciousCount = completedResults.filter((r) => r.status === "suspicious").length;
@@ -669,7 +1166,6 @@ export default function AssetDetailPage() {
     else if (suspiciousCount > 0) overallStatus = "suspicious";
     else if (totalCount > 0) overallStatus = "clean";
 
-    // Update asset in local state
     setAsset((prev) => {
       if (!prev) return prev;
       return {
@@ -724,6 +1220,8 @@ export default function AssetDetailPage() {
   const flaggedCount = asset.checks_total - asset.checks_passed;
   const enabledCount = Object.values(asset.checks_enabled).filter(Boolean).length;
 
+  // ─── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -741,7 +1239,7 @@ export default function AssetDetailPage() {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-foreground">{asset.name}</h1>
               <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
-                {asset.type.toUpperCase()}
+                {asset.type === "cidr" ? "CIDR" : asset.type.toUpperCase()}
               </Badge>
               <Badge
                 variant="outline"
@@ -778,13 +1276,15 @@ export default function AssetDetailPage() {
           <Button
             size="sm"
             className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={handleRunAllChecks}
+            onClick={asset.type === "cidr" ? handleRunCidrAllChecks : handleRunAllChecks}
             disabled={runningChecks}
           >
             {runningChecks ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Running {checkProgress.current}/{checkProgress.total}
+                {asset.type === "cidr"
+                  ? `Checking IP ${checkProgress.current} of ${checkProgress.total}`
+                  : `Running ${checkProgress.current}/${checkProgress.total}`}
               </>
             ) : (
               <>
@@ -800,8 +1300,12 @@ export default function AssetDetailPage() {
       {runningChecks && (
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Running checks...</span>
-            <span className="text-foreground">{checkProgress.current} of {checkProgress.total}</span>
+            <span className="text-muted-foreground">
+              {asset.type === "cidr" ? "Checking IPs..." : "Running checks..."}
+            </span>
+            <span className="text-foreground">
+              {checkProgress.current} of {checkProgress.total}
+            </span>
           </div>
           <Progress
             value={(checkProgress.current / checkProgress.total) * 100}
@@ -821,7 +1325,7 @@ export default function AssetDetailPage() {
         <StatCard
           icon={CheckCircle2}
           label="Checks Enabled"
-          value={`${enabledCount} of 10`}
+          value={`${enabledCount} of 9`}
         />
         <StatCard
           icon={Timer}
@@ -836,8 +1340,8 @@ export default function AssetDetailPage() {
         />
       </div>
 
-      {/* Blacklist History Chart */}
-      {(asset.type === "ip" || asset.type === "hostname") && blacklistHistory.length > 0 && (
+      {/* Blacklist History Chart — only for non-CIDR IPs */}
+      {asset.type === "ip" && blacklistHistory.length > 0 && (
         <Card className="border-border bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-medium">
@@ -851,31 +1355,172 @@ export default function AssetDetailPage() {
         </Card>
       )}
 
-      {/* Tabbed Results */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="border-border bg-secondary">
-          {TOOL_TABS.map((tab) => (
-            <TabsTrigger
-              key={tab.key}
-              value={tab.key}
-              disabled={!asset.checks_enabled[tab.key]}
-              className="data-[state=active]:bg-card data-[state=active]:text-foreground"
-            >
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* CIDR Child IP Grid */}
+      {asset.type === "cidr" && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">
+            Child IPs ({cidrIps.length})
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {cidrIps.map((ip) => {
+              const ipStatus = getChildIpStatus(ip);
+              const hasResults = ipStatus.total > 0;
+              return (
+                <Card
+                  key={ip}
+                  className="border-border bg-card hover:border-primary/50 transition-colors"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="font-mono text-sm font-bold text-foreground">{ip}</p>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] px-2 py-0",
+                          CHILD_STATUS_BADGE[hasResults ? ipStatus.status : "unknown"]
+                        )}
+                      >
+                        {hasResults
+                          ? ipStatus.status.charAt(0).toUpperCase() + ipStatus.status.slice(1)
+                          : "Never Scanned"}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mb-2">
+                      {ipStatus.checked_at ? `Last checked: ${relativeTime(ipStatus.checked_at)}` : "Never scanned"}
+                    </p>
+                    {hasResults && (
+                      <div className="space-y-1.5 mb-3">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Checks flagged</span>
+                          <span className={cn("font-semibold", ipStatus.flagged > 0 ? "text-red-500" : "text-green-500")}>
+                            {ipStatus.flagged}/{ipStatus.total}
+                          </span>
+                        </div>
+                        <Progress
+                          value={ipStatus.total > 0 ? (ipStatus.flagged / ipStatus.total) * 100 : 0}
+                          className={cn("h-1.5", ipStatus.flagged > 0 ? "[&>div]:bg-red-500" : "[&>div]:bg-green-500")}
+                        />
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-7 text-xs border-border"
+                      onClick={() => setSelectedChildIp(ip)}
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      View Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-        {TOOL_TABS.map((tab) => (
-          <TabsContent key={tab.key} value={tab.key}>
-            <TabContent
-              toolType={tab.key}
-              result={results[tab.key]}
-              enabled={asset.checks_enabled[tab.key] ?? true}
-            />
-          </TabsContent>
-        ))}
-      </Tabs>
+      {/* Tabbed Results — only for non-CIDR assets */}
+      {asset.type !== "cidr" && (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="border-border bg-secondary">
+            {TOOL_TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.key}
+                value={tab.key}
+                disabled={!asset.checks_enabled[tab.key]}
+                className="data-[state=active]:bg-card data-[state=active]:text-foreground"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {TOOL_TABS.map((tab) => (
+            <TabsContent key={tab.key} value={tab.key}>
+              <TabContent
+                toolType={tab.key}
+                result={results[tab.key]}
+                enabled={asset.checks_enabled[tab.key] ?? true}
+              />
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
+
+      {/* Sheet — Child IP Detail */}
+      <Sheet
+        open={!!selectedChildIp}
+        onOpenChange={(open: boolean) => { if (!open) setSelectedChildIp(null); }}
+      >
+        <SheetContent side="right" className="w-full sm:max-w-lg border-border bg-card overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-mono text-foreground">{selectedChildIp || ""}</SheetTitle>
+            <SheetDescription className="text-muted-foreground">
+              Scan results for this IP
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4 space-y-4">
+            <Button
+              size="sm"
+              className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => selectedChildIp && handleRunChildIpChecks(selectedChildIp)}
+              disabled={childRunningChecks || !selectedChildIp}
+            >
+              {childRunningChecks ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Running...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4" /> Re-run Checks</>
+              )}
+            </Button>
+
+            {selectedChildIp && (
+              <Tabs defaultValue="ip_lookup" className="space-y-4">
+                <TabsList className="border-border bg-secondary flex-wrap">
+                  {TOOL_TABS.map((tab) => {
+                    const childResults = getChildIpTabResults(selectedChildIp);
+                    const hasResult = !!childResults[tab.key];
+                    return (
+                      <TabsTrigger
+                        key={tab.key}
+                        value={tab.key}
+                        disabled={!asset?.checks_enabled[tab.key]}
+                        className={cn(
+                          "data-[state=active]:bg-card data-[state=active]:text-foreground text-[10px] px-2",
+                          hasResult && "text-green-500"
+                        )}
+                      >
+                        {tab.label}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+                {TOOL_TABS.map((tab) => {
+                  const childResults = getChildIpTabResults(selectedChildIp);
+                  return (
+                    <TabsContent key={tab.key} value={tab.key}>
+                      <TabContent
+                        toolType={tab.key}
+                        result={childResults[tab.key]}
+                        enabled={asset?.checks_enabled[tab.key] ?? true}
+                      />
+                    </TabsContent>
+                  );
+                })}
+              </Tabs>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <AddAssetDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onCreated={() => { fetchAsset(); setEditDialogOpen(false); }}
+          initialData={asset}
+        />
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

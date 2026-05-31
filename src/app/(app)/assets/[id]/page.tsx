@@ -126,6 +126,20 @@ const TOOL_TABS = [
   { key: "server_status", label: "Server Status" },
 ];
 
+const INCOMPATIBLE_CHECKS: Record<string, string[]> = {
+  domain: [],
+  ip: ["dns_records", "ssl", "email_security", "server_status"],
+  cidr: [
+    "domain_lookup",
+    "port_scan",
+    "dns_records",
+    "whois",
+    "ssl",
+    "email_security",
+    "server_status",
+  ],
+};
+
 const STATUS_BADGE_COLORS: Record<string, string> = {
   clean: "border-green-500/30 bg-green-500/10 text-green-500",
   suspicious: "border-yellow-500/30 bg-yellow-500/10 text-yellow-500",
@@ -656,7 +670,7 @@ function AddAssetDialog({
     }
   }, [open, initialData]);
 
-  const INCOMPATIBLE_CHECKS: Record<string, string[]> = {
+  const localIncompatibleChecks: Record<string, string[]> = {
     domain: [],
     ip: ["dns_records", "ssl", "email_security", "server_status"],
     cidr: [
@@ -670,7 +684,7 @@ function AddAssetDialog({
     ],
   };
 
-  const disabledChecks = INCOMPATIBLE_CHECKS[type] || [];
+  const disabledChecks = localIncompatibleChecks[type] || [];
 
   useEffect(() => {
     setChecks((prev) => {
@@ -1126,8 +1140,6 @@ export default function AssetDetailPage() {
 
     setCheckProgress({ current: 0, total: enabledChecks.length });
 
-    const newResults = { ...results };
-
     for (let i = 0; i < enabledChecks.length; i++) {
       const tool = enabledChecks[i];
       setCheckProgress({ current: i + 1, total: enabledChecks.length });
@@ -1140,42 +1152,25 @@ export default function AssetDetailPage() {
         });
         if (response.ok) {
           const data = await response.json();
-          newResults[tool] = {
-            id: data.saved ? "saved" : "",
-            asset_id: id,
-            tool_type: tool,
-            result: data.result,
-            status: data.status,
-            checked_at: new Date().toISOString(),
-          };
-          setResults({ ...newResults });
+          setResults((prev) => ({
+            ...prev,
+            [tool]: {
+              id: data.saved ? "saved" : "",
+              asset_id: id,
+              tool_type: tool,
+              result: data.result,
+              status: data.status,
+              checked_at: new Date().toISOString(),
+            },
+          }));
         }
       } catch (err) {
         console.error(`Check failed for ${tool}:`, err);
       }
     }
 
-    const completedResults = Object.values(newResults).filter((r) => r.id || r.result);
-    const flaggedCount = completedResults.filter((r) => r.status === "threat" || r.status === "suspicious").length;
-    const totalCount = completedResults.length;
-
-    let overallStatus: "clean" | "suspicious" | "threat" | "unknown" = "unknown";
-    const threatCount = completedResults.filter((r) => r.status === "threat").length;
-    const suspiciousCount = completedResults.filter((r) => r.status === "suspicious").length;
-    if (threatCount > 0) overallStatus = "threat";
-    else if (suspiciousCount > 0) overallStatus = "suspicious";
-    else if (totalCount > 0) overallStatus = "clean";
-
-    setAsset((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        last_checked_at: new Date().toISOString(),
-        last_status: overallStatus,
-        checks_passed: totalCount - flaggedCount,
-        checks_total: totalCount,
-      };
-    });
+    // Re-fetch all results from the API to ensure tabs show persisted data
+    await fetchAsset();
 
     setRunningChecks(false);
   };
@@ -1219,6 +1214,7 @@ export default function AssetDetailPage() {
 
   const flaggedCount = asset.checks_total - asset.checks_passed;
   const enabledCount = Object.values(asset.checks_enabled).filter(Boolean).length;
+  const compatibleCheckCount = asset.type === "ip" ? 5 : asset.type === "cidr" ? 2 : 9;
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -1325,7 +1321,7 @@ export default function AssetDetailPage() {
         <StatCard
           icon={CheckCircle2}
           label="Checks Enabled"
-          value={`${enabledCount} of 9`}
+          value={`${enabledCount} of ${compatibleCheckCount}`}
         />
         <StatCard
           icon={Timer}
@@ -1420,32 +1416,37 @@ export default function AssetDetailPage() {
       )}
 
       {/* Tabbed Results — only for non-CIDR assets */}
-      {asset.type !== "cidr" && (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="border-border bg-secondary">
-            {TOOL_TABS.map((tab) => (
-              <TabsTrigger
-                key={tab.key}
-                value={tab.key}
-                disabled={!asset.checks_enabled[tab.key]}
-                className="data-[state=active]:bg-card data-[state=active]:text-foreground"
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      {asset.type !== "cidr" && (() => {
+        const compatibleTabs = TOOL_TABS.filter(
+          (t) => !INCOMPATIBLE_CHECKS[asset.type]?.includes(t.key)
+        );
+        return (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="border-border bg-secondary">
+              {compatibleTabs.map((tab) => (
+                <TabsTrigger
+                  key={tab.key}
+                  value={tab.key}
+                  disabled={!asset.checks_enabled[tab.key]}
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground"
+                >
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          {TOOL_TABS.map((tab) => (
-            <TabsContent key={tab.key} value={tab.key}>
-              <TabContent
-                toolType={tab.key}
-                result={results[tab.key]}
-                enabled={asset.checks_enabled[tab.key] ?? true}
-              />
-            </TabsContent>
-          ))}
-        </Tabs>
-      )}
+            {compatibleTabs.map((tab) => (
+              <TabsContent key={tab.key} value={tab.key}>
+                <TabContent
+                  toolType={tab.key}
+                  result={results[tab.key]}
+                  enabled={asset.checks_enabled[tab.key] ?? true}
+                />
+              </TabsContent>
+            ))}
+          </Tabs>
+        );
+      })()}
 
       {/* Sheet — Child IP Detail */}
       <Sheet
@@ -1473,46 +1474,46 @@ export default function AssetDetailPage() {
               )}
             </Button>
 
-            {selectedChildIp && (
-              <Tabs defaultValue="ip_lookup" className="space-y-4">
-                <TabsList className="border-border bg-secondary flex-wrap">
-                  {TOOL_TABS.map((tab) => {
+            {selectedChildIp && (() => {
+              const compatibleTabs = TOOL_TABS.filter(
+                (t) => !INCOMPATIBLE_CHECKS[asset?.type || ""]?.includes(t.key)
+              );
+              return (
+                <Tabs defaultValue="ip_lookup" className="space-y-4">
+                  <TabsList className="border-border bg-secondary flex-wrap">
+                    {compatibleTabs.map((tab) => {
+                      const childResults = getChildIpTabResults(selectedChildIp);
+                      const hasResult = !!childResults[tab.key];
+                      return (
+                        <TabsTrigger
+                          key={tab.key}
+                          value={tab.key}
+                          disabled={!asset?.checks_enabled[tab.key]}
+                          className={cn(
+                            "data-[state=active]:bg-card data-[state=active]:text-foreground text-[10px] px-2",
+                            hasResult && "text-green-500"
+                          )}
+                        >
+                          {tab.label}
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+                  {compatibleTabs.map((tab) => {
                     const childResults = getChildIpTabResults(selectedChildIp);
-                    const hasResult = !!childResults[tab.key];
                     return (
-                      <TabsTrigger
-                        key={tab.key}
-                        value={tab.key}
-                        disabled={!asset?.checks_enabled[tab.key]}
-                        className={cn(
-                          "data-[state=active]:bg-card data-[state=active]:text-foreground text-[10px] px-2",
-                          hasResult && "text-green-500"
-                        )}
-                      >
-                        {tab.label}
-                      </TabsTrigger>
+                      <TabsContent key={tab.key} value={tab.key}>
+                        <TabContent
+                          toolType={tab.key}
+                          result={childResults[tab.key]}
+                          enabled={asset?.checks_enabled[tab.key] ?? true}
+                        />
+                      </TabsContent>
                     );
                   })}
-                </TabsList>
-                {TOOL_TABS.map((tab) => {
-                  const childResults = getChildIpTabResults(selectedChildIp);
-                  return (
-                    <TabsContent key={tab.key} value={tab.key}>
-                      <TabContent
-                        toolType={tab.key}
-                        result={childResults[tab.key]}
-                        enabled={asset?.checks_enabled[tab.key] ?? true}
-                      />
-                    </TabsContent>
-                  );
-                })}
-              </Tabs>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Edit Dialog */}
+                </Tabs>
+              );
+            })()}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <AddAssetDialog
           open={editDialogOpen}

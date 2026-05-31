@@ -3,13 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 
 // ─── Map of tool types to their API endpoints and target param names ───
 
-const TOOL_ENDPOINTS: Record<string, { path: string; param: string }> = {
+const TOOL_ENDPOINTS: Record<string, { path: string; param: string; method?: string }> = {
   ip_lookup: { path: "/api/lookup", param: "ip" },
   domain_lookup: { path: "/api/domain", param: "domain" },
   port_scan: { path: "/api/ports", param: "target" },
-  blacklist: { path: "/api/blacklist", param: "hostname" },
-  dns_records: { path: "/api/dns", param: "domain" },
-  whois: { path: "/api/whois", param: "domain" },
+  blacklist: { path: "/api/blacklist", param: "", method: "POST" },
+  dns_records: { path: "/api/dns", param: "hostname" },
+  whois: { path: "/api/whois", param: "hostname" },
   ssl: { path: "/api/ssl", param: "host" },
   email_security: { path: "/api/email-security", param: "domain" },
   server_status: { path: "/api/server-status", param: "host" },
@@ -127,17 +127,30 @@ export async function POST(
     const host = request.headers.get("host") || "localhost:3000";
     const baseUrl = `${protocol}://${host}`;
 
-    // Build query params
-    const targetParams = getTargetParam(effectiveTarget, asset.type, tool);
-    const queryString = new URLSearchParams(targetParams).toString();
-    const url = `${baseUrl}${endpoint.path}?${queryString}`;
+    // Call the tool API — POST tools (like blacklist) send JSON body, others use GET query params
+    let toolResponse: Response;
 
-    // Call the tool API
-    const toolResponse = await fetch(url, {
-      headers: {
-        cookie: request.headers.get("cookie") || "",
-      },
-    });
+    if (endpoint.method === "POST") {
+      const url = `${baseUrl}${endpoint.path}`;
+      const blacklistType = asset.type === "ip" ? "ip" : "domain";
+      toolResponse = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: request.headers.get("cookie") || "",
+        },
+        body: JSON.stringify({ type: blacklistType, target: effectiveTarget }),
+      });
+    } else {
+      const targetParams = getTargetParam(effectiveTarget, asset.type, tool);
+      const queryString = new URLSearchParams(targetParams).toString();
+      const url = `${baseUrl}${endpoint.path}?${queryString}`;
+      toolResponse = await fetch(url, {
+        headers: {
+          cookie: request.headers.get("cookie") || "",
+        },
+      });
+    }
 
     let result: any;
     let status: string;

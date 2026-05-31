@@ -18,6 +18,7 @@ export function TopbarActions({
   const router = useRouter();
   const isMounted = useRef(true);
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  const channelCounterRef = useRef(0);
 
   // Fetch unread alert count + latest unread ID
   const fetchUnreadData = useCallback(async (supabase: ReturnType<typeof createClient>, uid: string) => {
@@ -68,6 +69,8 @@ export function TopbarActions({
   useEffect(() => {
     isMounted.current = true;
     const supabase = createClient();
+    const mountGeneration = ++channelCounterRef.current;
+    const channelName = `alerts-unread-${mountGeneration}`;
 
     // Remove any previous channel before creating a new one
     if (channelRef.current) {
@@ -76,7 +79,9 @@ export function TopbarActions({
     }
 
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user || !isMounted.current) return;
+      // Guard against stale async closures from previous effect runs
+      if (!isMounted.current || mountGeneration !== channelCounterRef.current) return;
+      if (!user) return;
 
       const email = user.email ?? "";
       const uid = user.id;
@@ -88,7 +93,7 @@ export function TopbarActions({
 
       // Subscribe to real-time INSERT on alerts table
       const alertsChannel = supabase
-        .channel("alerts-unread")
+        .channel(channelName)
         .on(
           "postgres_changes",
           {

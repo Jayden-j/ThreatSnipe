@@ -11,6 +11,7 @@ const routeTitles: Record<string, string> = {
   "/dns": "DNS Records",
   "/whois": "WHOIS Lookup",
   "/history": "Scan History",
+  "/assets": "Assets",
   "/alerts": "Alerts",
   "/settings": "Settings",
   "/ssl": "SSL Certificate Checker",

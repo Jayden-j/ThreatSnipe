@@ -1514,6 +1514,10 @@ export default function AssetDetailPage() {
                 </Tabs>
               );
             })()}
+            </div>
+          </SheetContent>
+        </Sheet>
+
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <AddAssetDialog
           open={editDialogOpen}

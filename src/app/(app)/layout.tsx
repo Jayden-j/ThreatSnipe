@@ -13,7 +13,7 @@ export default function AppLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <>
+    <div className="dark">
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -30,6 +30,6 @@ export default function AppLayout({
         </header>
         <main className="p-6">{children}</main>
       </div>
-    </>
+    </div>
   );
 }

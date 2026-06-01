@@ -15,8 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Centry — Cyber Threat Monitor",
-  description: "Cybersecurity threat monitoring dashboard",
+  title: "ThreatSnipe — Threat Intelligence Platform",
+  description: "Monitor IPs, domains, and CIDR ranges with real-time threat intelligence aggregated from AbuseIPDB, VirusTotal, and DNSBL providers.",
   icons: { icon: "/logo.png" },
 };
 
@@ -28,9 +28,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${antic.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
-      style={{ fontSize: "115%" }}
+      className={`${antic.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-full bg-background text-foreground">
         {children}
       </body>

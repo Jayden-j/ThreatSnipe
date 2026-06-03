@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createServiceClient } from "@/lib/supabase/service";
+import { sendAlertNotification } from "@/lib/notify";
 
 interface VirusTotalResponse {
   data?: {
@@ -208,10 +209,8 @@ export async function GET(request: NextRequest) {
 
         // Insert alert based on domain verdict
         if (verdict !== "CLEAN" && scanRecord?.id) {
-          let severity: string;
-          if (malicious > 0) severity = "critical";
-          else if (suspicious > 3) severity = "high";
-          else severity = "medium";
+          const severity =
+            malicious > 0 ? "critical" : suspicious > 3 ? "high" : "medium";
 
           try {
             const serviceSupabase = createServiceClient();
@@ -222,7 +221,7 @@ export async function GET(request: NextRequest) {
               severity,
               category: "malicious_domain",
               title: `${isIp ? "IP" : "Domain"} Alert: ${target}`,
-              message: `${malicious} malicious, ${suspicious} suspicious - Reputation: ${attrs.reputation}`,
+              message: `${malicious} malicious, ${suspicious} suspicious — Reputation: ${attrs.reputation}`,
               metadata: {
                 [isIp ? "ip_address" : "domain"]: target,
                 malicious,
@@ -234,6 +233,23 @@ export async function GET(request: NextRequest) {
             });
           } catch (alertError) {
             console.error("Failed to insert alert:", alertError);
+          }
+
+          // Fire notification for MALICIOUS verdicts (non-blocking)
+          if (verdict === "MALICIOUS") {
+            sendAlertNotification({
+              userId: user.id,
+              severity: severity as "critical" | "high" | "medium" | "low",
+              category: "malicious_domain",
+              title: `Malicious ${isIp ? "IP" : "Domain"}: ${target}`,
+              target,
+              details: {
+                "Malicious Engines": malicious,
+                "Suspicious Engines": suspicious,
+                Reputation: attrs.reputation,
+              },
+              rescanPath: `/domain?domain=${encodeURIComponent(target)}`,
+            }).catch((err) => console.error("Notify error:", err));
           }
         }
       }

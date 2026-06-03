@@ -1,40 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { sendAlertNotification, sendTestNotification, type AlertPayload } from "@/lib/notify";
 
-interface NotifyRequest {
-  ip: string;
-  abuseScore: number;
-  country: string;
-  isp: string;
-  threatLevel: string;
-  userId: string | null;
-  _test?: boolean;
-}
-
+/**
+ * POST /api/notify
+ *
+ * Two modes:
+ *  1. Real alert  — body: AlertPayload (called server-side from scan routes)
+ *  2. Test mode   — body: { _test: true, discord?: string, slack?: string }
+ *     Sends a sample notification to the provided or saved URLs.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body: NotifyRequest = await request.json();
-    const { ip, abuseScore, country, isp, threatLevel, userId, _test } = body;
+    const body = await request.json();
 
-    // Only fire for THREAT level scans (unless it's a test)
-    if (threatLevel !== "THREAT" && !_test) {
-      return NextResponse.json({ success: true, notified: [] });
-    }
-
-    // If no userId (test mode), send to a hardcoded test path
-    if (!userId && !_test) {
-      return NextResponse.json({ success: true, notified: [] });
-    }
-
-    const webhookUrls: { slack_webhook_url: string | null; discord_webhook_url: string | null } = {
-      slack_webhook_url: null,
-      discord_webhook_url: null,
-    };
-
-    // For test mode, use the URLs from the request body directly (passed through settings page)
-    if (_test) {
-      // In test mode, we need to get the URLs from the user_settings. We'll read them
-      // from the request body if provided, otherwise from the database.
+    // ── Test mode ─────────────────────────────────────────────────────────────
+    if (body._test === true) {
+      // Build Supabase client from cookies to identify the calling user
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -43,137 +25,79 @@ export async function POST(request: NextRequest) {
             getAll() {
               return request.cookies.getAll();
             },
-            setAll() {
-              // Not needed
-            },
+            setAll() {},
           },
         }
       );
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      }
+
+      // Caller may pass explicit URLs to test (before saving), or we fetch from DB
+      let discordUrl: string | null = body.discordUrl ?? null;
+      let slackUrl: string | null = body.slackUrl ?? null;
+
+      if (!discordUrl && !slackUrl) {
+        const { data: settings } = await supabase
           .from("user_settings")
-          .select("slack_webhook_url, discord_webhook_url")
+          .select("discord_webhook_url, slack_webhook_url")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (data) {
-          webhookUrls.slack_webhook_url = data.slack_webhook_url;
-          webhookUrls.discord_webhook_url = data.discord_webhook_url;
-        }
+        discordUrl = settings?.discord_webhook_url ?? null;
+        slackUrl = settings?.slack_webhook_url ?? null;
       }
 
-      // If we have no webhook URLs, we can't test
-      if (!webhookUrls.slack_webhook_url && !webhookUrls.discord_webhook_url) {
+      if (!discordUrl && !slackUrl) {
         return NextResponse.json(
-          { success: false, error: "No webhooks configured. Save a webhook URL first." },
+          { success: false, error: "No webhook URLs configured. Save at least one URL first." },
           { status: 400 }
         );
       }
-    } else if (userId) {
-      // Fetch webhook URLs from user_settings table
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            getAll() {
-              return request.cookies.getAll();
-            },
-            setAll() {
-              // Not needed
-            },
-          },
-        }
+
+      const result = await sendTestNotification(discordUrl, slackUrl);
+      return NextResponse.json({ success: true, result });
+    }
+
+    // ── Real alert mode ───────────────────────────────────────────────────────
+    const {
+      userId,
+      severity,
+      category,
+      title,
+      target,
+      details,
+      rescanPath,
+    } = body as AlertPayload & { userId: string };
+
+    if (!userId || !severity || !category || !title || !target) {
+      return NextResponse.json(
+        { success: false, error: "Missing required fields" },
+        { status: 400 }
       );
-
-      const { data } = await supabase
-        .from("user_settings")
-        .select("slack_webhook_url, discord_webhook_url")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (data) {
-        webhookUrls.slack_webhook_url = data.slack_webhook_url;
-        webhookUrls.discord_webhook_url = data.discord_webhook_url;
-      }
     }
 
-    const notified: string[] = [];
-    const isoTimestamp = new Date().toISOString();
+    const payload: AlertPayload = {
+      userId,
+      severity,
+      category,
+      title,
+      target,
+      details: details ?? {},
+      rescanPath,
+    };
 
-    // Send Slack webhook
-    if (webhookUrls.slack_webhook_url) {
-      try {
-        const slackPayload = {
-          text: "🚨 *Centry Alert* — Threat Detected",
-          attachments: [
-            {
-              color: "#ff4444",
-              fields: [
-                { title: "IP Address", value: ip, short: true },
-                { title: "Abuse Score", value: `${abuseScore}/100`, short: true },
-                { title: "Country", value: country, short: true },
-                { title: "ISP", value: isp, short: true },
-              ],
-            },
-          ],
-        };
-
-        const slackResponse = await fetch(webhookUrls.slack_webhook_url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(slackPayload),
-        });
-
-        if (slackResponse.ok) {
-          notified.push("slack");
-        }
-      } catch (err) {
-        console.error("Failed to send Slack notification:", err);
-      }
-    }
-
-    // Send Discord webhook
-    if (webhookUrls.discord_webhook_url) {
-      try {
-        const discordPayload = {
-          embeds: [
-            {
-              title: "🚨 Centry Alert — Threat Detected",
-              color: 16711748,
-              fields: [
-                { name: "IP Address", value: ip, inline: true },
-                { name: "Abuse Score", value: `${abuseScore}/100`, inline: true },
-                { name: "Country", value: country, inline: true },
-                { name: "ISP", value: isp, inline: true },
-              ],
-              footer: { text: "Centry Threat Monitor" },
-              timestamp: isoTimestamp,
-            },
-          ],
-        };
-
-        const discordResponse = await fetch(webhookUrls.discord_webhook_url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(discordPayload),
-        });
-
-        if (discordResponse.ok) {
-          notified.push("discord");
-        }
-      } catch (err) {
-        console.error("Failed to send Discord notification:", err);
-      }
-    }
-
-    return NextResponse.json({ success: true, notified });
+    const result = await sendAlertNotification(payload);
+    return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error("Notification error:", error);
+    console.error("Notify route error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to send notification" },
+      { success: false, error: "Internal error" },
       { status: 500 }
     );
   }

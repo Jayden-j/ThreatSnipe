@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createServiceClient } from "@/lib/supabase/service";
+import { sendAlertNotification } from "@/lib/notify";
 
 interface AbuseIPDBResponse {
   data?: {
@@ -253,24 +254,22 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Fire webhook notification for THREAT scans (non-blocking)
+        // Fire notification for THREAT-level scans (non-blocking)
         if (threatLevel === "THREAT") {
-          const origin = request.headers.get("origin") || request.headers.get("host") || "http://localhost:3000";
-          const baseUrl = origin.startsWith("http") ? origin : `https://${origin}`;
-          fetch(`${baseUrl}/api/notify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ip: data.data.ipAddress,
-              abuseScore: abuseScore,
-              country: data.data.countryCode,
-              isp: data.data.isp,
-              threatLevel: threatLevel,
-              userId: user.id,
-            }),
-          }).catch((err) => {
-            console.error("Failed to send notification:", err);
-          });
+          sendAlertNotification({
+            userId: user.id,
+            severity: abuseScore >= 75 ? "critical" : "high",
+            category: "ip_threat",
+            title: `IP Threat: ${data.data.ipAddress}`,
+            target: data.data.ipAddress,
+            details: {
+              "Abuse Score": `${abuseScore}/100`,
+              Country: data.data.countryCode,
+              ISP: data.data.isp,
+              Reports: data.data.totalReports,
+            },
+            rescanPath: `/lookup?ip=${encodeURIComponent(data.data.ipAddress)}`,
+          }).catch((err) => console.error("Notify error:", err));
         }
       }
     } catch (dbError) {

@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import { ShieldAlert, Globe, Terminal } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { ShieldAlert, Globe, Terminal, ChevronRight, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 type Severity = "critical" | "high" | "medium" | "low";
 type Category = "ip_threat" | "malicious_domain" | "port_risk";
@@ -26,39 +27,67 @@ interface Alert {
   created_at: string;
 }
 
-const SEVERITY_CONFIG: Record<Severity, { color: string; border: string; label: string }> = {
-  critical: { color: "bg-red-500/10 text-red-500 border-red-500/30", border: "border-l-red-500", label: "Critical" },
-  high: { color: "bg-orange-500/10 text-orange-500 border-orange-500/30", border: "border-l-orange-500", label: "High" },
-  medium: { color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30", border: "border-l-yellow-500", label: "Medium" },
-  low: { color: "bg-blue-500/10 text-blue-500 border-blue-500/30", border: "border-l-blue-500", label: "Low" },
+// ─── Severity config ───────────────────────────────────────────────────────────
+
+const SEVERITY_CONFIG: Record<
+  Severity,
+  { accentColor: string; badgeClass: string; iconBgClass: string; label: string }
+> = {
+  critical: {
+    accentColor: "#ef4444",
+    badgeClass: "border-red-500/30 bg-red-500/10 text-red-400",
+    iconBgClass: "bg-red-500/10 text-red-400",
+    label: "Critical",
+  },
+  high: {
+    accentColor: "#f97316",
+    badgeClass: "border-orange-500/30 bg-orange-500/10 text-orange-400",
+    iconBgClass: "bg-orange-500/10 text-orange-400",
+    label: "High",
+  },
+  medium: {
+    accentColor: "#eab308",
+    badgeClass: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",
+    iconBgClass: "bg-yellow-500/10 text-yellow-400",
+    label: "Medium",
+  },
+  low: {
+    accentColor: "#3b82f6",
+    badgeClass: "border-blue-500/30 bg-blue-500/10 text-blue-400",
+    iconBgClass: "bg-blue-500/10 text-blue-400",
+    label: "Low",
+  },
 };
 
 const CATEGORY_CONFIG: Record<Category, { icon: React.ReactNode; label: string }> = {
-  ip_threat: { icon: <ShieldAlert className="h-5 w-5" />, label: "IP Threat" },
-  malicious_domain: { icon: <Globe className="h-5 w-5" />, label: "Domain" },
-  port_risk: { icon: <Terminal className="h-5 w-5" />, label: "Port Scan" },
+  ip_threat: {
+    icon: <ShieldAlert className="h-4 w-4" />,
+    label: "IP Threat",
+  },
+  malicious_domain: {
+    icon: <Globe className="h-4 w-4" />,
+    label: "Malicious Domain",
+  },
+  port_risk: {
+    icon: <Terminal className="h-4 w-4" />,
+    label: "Port Risk",
+  },
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getRelativeTime(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
+  const diffMin = Math.floor(diffMs / 60000);
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
-  const diffWeek = Math.floor(diffDay / 7);
-
-  if (diffSec < 60) return "just now";
-  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
-  if (diffHour < 24) return `${diffHour} hour${diffHour === 1 ? "" : "s"} ago`;
-  if (diffDay < 7) return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
-  if (diffWeek < 4) return `${diffWeek} week${diffWeek === 1 ? "" : "s"} ago`;
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function getReScanLink(alert: Alert): string {
@@ -77,6 +106,114 @@ function getReScanLink(alert: Alert): string {
   return "#";
 }
 
+// ─── Alert Card ────────────────────────────────────────────────────────────────
+
+function AlertCard({
+  alert,
+  index,
+  isHighlight,
+  alertRef,
+}: {
+  alert: Alert;
+  index: number;
+  isHighlight: boolean;
+  alertRef?: React.Ref<HTMLDivElement>;
+}) {
+  const sevCfg = SEVERITY_CONFIG[alert.severity] ?? SEVERITY_CONFIG.low;
+  const catCfg = CATEGORY_CONFIG[alert.category] ?? CATEGORY_CONFIG.ip_threat;
+
+  return (
+    <motion.div
+      ref={alertRef}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.32,
+        delay: Math.min(index * 0.04, 0.28),
+        ease: "easeOut",
+      }}
+      className={cn(
+        "group relative rounded-xl border border-border/70 bg-card overflow-hidden",
+        isHighlight && "ring-1 ring-primary/40 border-primary/30",
+        !alert.read && !isHighlight && "bg-card/80"
+      )}
+      style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.3)" }}
+    >
+      {/* Severity left accent bar */}
+      <div
+        className="absolute inset-y-0 left-0 w-[3px]"
+        style={{
+          background: `linear-gradient(to bottom, ${sevCfg.accentColor}, ${sevCfg.accentColor}66)`,
+        }}
+      />
+
+      {/* Unread indicator dot */}
+      {!alert.read && (
+        <div
+          className="absolute top-4 right-4 h-1.5 w-1.5 rounded-full"
+          style={{ background: sevCfg.accentColor }}
+        />
+      )}
+
+      <div className="pl-5 pr-5 py-4">
+        <div className="flex items-start gap-3">
+          {/* Category icon */}
+          <div
+            className={cn(
+              "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+              sevCfg.iconBgClass
+            )}
+          >
+            {catCfg.icon}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-center gap-2 flex-wrap pr-6">
+              <Badge
+                variant="outline"
+                className={cn("text-[9px] px-1.5 py-0 h-4 shrink-0", sevCfg.badgeClass)}
+              >
+                {sevCfg.label.toUpperCase()}
+              </Badge>
+              <p className="font-semibold text-sm text-foreground leading-snug">
+                {alert.title}
+              </p>
+            </div>
+
+            {/* Message */}
+            {alert.message && (
+              <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                {alert.message}
+              </p>
+            )}
+
+            {/* Meta row */}
+            <div className="mt-2 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span>{catCfg.label}</span>
+                <span className="text-border">·</span>
+                <span className="tabular-nums">{getRelativeTime(alert.created_at)}</span>
+              </div>
+
+              <Link
+                href={getReScanLink(alert)}
+                className="flex items-center gap-1 text-[11px] font-medium text-primary/80 hover:text-primary transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Re-scan
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Page content ──────────────────────────────────────────────────────────────
+
 export default function AlertsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -89,39 +226,31 @@ export default function AlertsPageContent() {
 
   const highlightId = searchParams.get("highlight");
 
-  // Fetch alerts on mount
   useEffect(() => {
     const supabase = createClient();
-
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         router.push("/login");
         return;
       }
-
       const uid = user.id;
       setUserId(uid);
-
       supabase
         .from("alerts")
         .select("*")
         .eq("user_id", uid)
         .order("created_at", { ascending: false })
         .then(({ data }) => {
-          if (data) {
-            setAlerts(data as Alert[]);
-          }
+          if (data) setAlerts(data as Alert[]);
           setLoading(false);
         });
     });
   }, [router]);
 
-  // Mark all alerts as read on mount (once)
   useEffect(() => {
     if (hasMarked.current) return;
     if (!userId) return;
     hasMarked.current = true;
-
     const supabase = createClient();
     (async () => {
       try {
@@ -132,12 +261,11 @@ export default function AlertsPageContent() {
           .eq("read", false);
         setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
       } catch {
-        // Silently fail
+        // silently fail
       }
     })();
   }, [userId]);
 
-  // Scroll to highlighted alert
   useEffect(() => {
     if (highlightId && highlightRef.current) {
       setTimeout(() => {
@@ -146,7 +274,6 @@ export default function AlertsPageContent() {
     }
   }, [highlightId, alerts]);
 
-  // Remove highlight from URL after initial scroll
   useEffect(() => {
     if (highlightId) {
       const timeout = setTimeout(() => {
@@ -157,9 +284,7 @@ export default function AlertsPageContent() {
   }, [highlightId, router]);
 
   const filteredAlerts =
-    activeTab === "all"
-      ? alerts
-      : alerts.filter((a) => a.severity === activeTab);
+    activeTab === "all" ? alerts : alerts.filter((a) => a.severity === activeTab);
 
   if (loading) {
     return (
@@ -171,12 +296,13 @@ export default function AlertsPageContent() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+        <h1 className="flex items-center gap-2.5 text-2xl font-bold text-foreground">
           <ShieldAlert className="h-6 w-6 text-primary" />
           Alerts
           {alerts.length > 0 && (
-            <span className="ml-2 rounded-md bg-red-500/20 px-2.5 py-0.5 text-sm font-semibold text-red-400 border border-red-500/30">
+            <span className="rounded-md border border-red-500/30 bg-red-500/15 px-2.5 py-0.5 text-sm font-semibold text-red-400">
               {alerts.length}
             </span>
           )}
@@ -186,7 +312,7 @@ export default function AlertsPageContent() {
         </p>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
@@ -196,87 +322,38 @@ export default function AlertsPageContent() {
         </TabsList>
       </Tabs>
 
-      {/* Alert Feed */}
+      {/* Alert feed */}
       {filteredAlerts.length > 0 ? (
-        <div className="space-y-3">
-          {filteredAlerts.map((alert) => {
-            const sevConfig = SEVERITY_CONFIG[alert.severity];
-            const catConfig = CATEGORY_CONFIG[alert.category];
-            const isHighlight = alert.id === highlightId;
-
-            return (
-              <div
-                key={alert.id}
-                ref={alert.id === highlightId ? highlightRef : undefined}
-                className={`rounded-lg border ${isHighlight ? "bg-primary/10 ring-1 ring-primary" : ""} ${!alert.read && !isHighlight ? "bg-muted/40" : ""}`}
-              >
-                <Card
-                  className={`border-l-4 ${sevConfig.border} ${isHighlight ? "border-border bg-transparent" : "border-border bg-card"}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 min-w-0 flex-1">
-                        {/* Category icon */}
-                        <div className={`mt-0.5 flex-shrink-0 ${alert.severity === "critical" ? "text-red-500" : alert.severity === "high" ? "text-orange-500" : "text-yellow-500"}`}>
-                          {catConfig.icon}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-foreground truncate">
-                              {alert.title}
-                            </p>
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] px-1.5 py-0 h-5 ${sevConfig.color}`}
-                            >
-                              {sevConfig.label}
-                            </Badge>
-                          </div>
-
-                          {alert.message && (
-                            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                              {alert.message}
-                            </p>
-                          )}
-
-                          <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="truncate">{catConfig.label}</span>
-                            <span>·</span>
-                            <span>{getRelativeTime(alert.created_at)}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Re-scan link */}
-                      <Link
-                        href={getReScanLink(alert)}
-                        className="flex-shrink-0 text-xs text-primary hover:underline pt-1"
-                      >
-                        Re-scan
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })}
+        <div className="space-y-2.5">
+          {filteredAlerts.map((alert, index) => (
+            <AlertCard
+              key={alert.id}
+              alert={alert}
+              index={index}
+              isHighlight={alert.id === highlightId}
+              alertRef={alert.id === highlightId ? highlightRef : undefined}
+            />
+          ))}
         </div>
       ) : (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
-            <ShieldAlert className="h-8 w-8 text-green-500" />
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="flex flex-col items-center justify-center rounded-xl border border-border/60 bg-card p-14 text-center"
+        >
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10 border border-green-500/20">
+            <Bell className="h-7 w-7 text-green-400" />
           </div>
-          <h2 className="text-xl font-semibold text-foreground">
+          <h2 className="text-lg font-semibold text-foreground">
             {activeTab === "all" ? "No alerts" : `No ${activeTab} alerts`}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground max-w-xs">
             {activeTab === "all"
-              ? "All your scans are clean. No security alerts to show."
+              ? "All clear — no security alerts to show."
               : `No ${activeTab} severity alerts found.`}
           </p>
-        </div>
+        </motion.div>
       )}
     </div>
   );

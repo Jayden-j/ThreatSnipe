@@ -94,10 +94,10 @@ export function ToolLauncher() {
               <Link
                 key={tool.href}
                 href={tool.href}
-                className="group flex flex-col gap-2 rounded-md border border-border bg-secondary/30 p-3 transition-all hover:border-primary/40 hover:bg-secondary/60 hover:shadow-[0_0_14px_-4px_rgba(95,160,122,0.25)]"
+                className="group flex flex-col gap-2 rounded-xl border border-border/60 bg-secondary/20 p-3 transition-all duration-200 hover:border-primary/40 hover:bg-secondary/50 hover:shadow-[0_0_20px_-4px_rgba(99,102,241,0.3)] hover:-translate-y-0.5"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/10 transition-colors group-hover:bg-primary/20">
-                  <Icon className="h-4 w-4 text-primary" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 transition-colors duration-200 group-hover:bg-primary/20 group-hover:border-primary/30">
+                  <Icon className="h-4 w-4 text-primary" strokeWidth={1.8} />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-foreground leading-snug">

@@ -19,10 +19,10 @@ export function StatCard({
 }: StatCardProps) {
   const glowColor =
     variant === "threat"
-      ? "group-hover:border-red-500/50 group-hover:shadow-[0_0_15px_-3px_rgba(255,68,68,0.3)]"
+      ? "group-hover:border-red-500/40 group-hover:shadow-[0_0_20px_-4px_rgba(239,68,68,0.35)]"
       : variant === "safe"
-        ? "group-hover:border-green-500/50 group-hover:shadow-[0_0_15px_-3px_rgba(0,255,136,0.3)]"
-        : "group-hover:border-primary/50 group-hover:shadow-[0_0_15px_-3px_rgba(0,255,136,0.3)]";
+        ? "group-hover:border-green-500/40 group-hover:shadow-[0_0_20px_-4px_rgba(34,197,94,0.3)]"
+        : "group-hover:border-primary/40 group-hover:shadow-[0_0_20px_-4px_rgba(99,102,241,0.3)]";
 
   return (
     <Card
@@ -33,8 +33,8 @@ export function StatCard({
       )}
     >
       <CardContent className="flex items-center gap-4 p-6">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary">
-          <Icon className="h-6 w-6 text-primary" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
+          <Icon className="h-5 w-5 text-primary" strokeWidth={1.8} />
         </div>
         <div>
           <p className="text-sm text-muted-foreground">{label}</p>

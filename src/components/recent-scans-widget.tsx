@@ -41,10 +41,10 @@ function TypeIcon({ type }: { type: "ip" | "domain" | "port" }) {
 
 export function RecentScansWidget({ entries }: { entries: RecentScanEntry[] }) {
   return (
-    <Card className="border-border bg-card">
+    <Card className="border-border/60 bg-card" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.25)" }}>
       <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-6">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <Clock className="h-4 w-4 text-primary" />
+          <Clock className="h-4 w-4 text-primary" strokeWidth={1.8} />
           Recent Scans
         </CardTitle>
         <Link
@@ -65,9 +65,9 @@ export function RecentScansWidget({ entries }: { entries: RecentScanEntry[] }) {
             {entries.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center gap-3 px-6 py-2.5 hover:bg-secondary/40 transition-colors"
+                className="flex items-center gap-3 px-6 py-2.5 hover:bg-secondary/40 transition-colors group"
               >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary/10">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
                   <TypeIcon type={entry.type} />
                 </span>
                 <span className="flex-1 min-w-0 font-mono text-xs text-foreground truncate">

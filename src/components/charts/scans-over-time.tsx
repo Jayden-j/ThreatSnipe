@@ -54,12 +54,12 @@ export function ScansOverTime({ data }: ScansOverTimeProps) {
                   axisLine={false}
                 />
                 <Tooltip
-                  cursor={{ stroke: "#ffffff20", strokeWidth: 1 }}
+                  cursor={{ stroke: "rgba(99,102,241,0.2)", strokeWidth: 1 }}
                   contentStyle={{
-                    backgroundColor: "#1a1a2e",
-                    border: "1px solid #00ff88",
+                    backgroundColor: "#0f0f1a",
+                    border: "1px solid rgba(99,102,241,0.35)",
                     borderRadius: "8px",
-                    color: "#fff",
+                    color: "#f1f5f9",
                   }}
                   labelFormatter={(val) => {
                     const d = new Date(val);
@@ -73,10 +73,10 @@ export function ScansOverTime({ data }: ScansOverTimeProps) {
                 <Line
                   type="monotone"
                   dataKey="count"
-                  stroke="#00ff88"
+                  stroke="#818cf8"
                   strokeWidth={2}
-                  dot={{ fill: "#00ff88", r: 4 }}
-                  activeDot={{ r: 6, fill: "#00ff88" }}
+                  dot={{ fill: "#818cf8", r: 4 }}
+                  activeDot={{ r: 6, fill: "#a5b4fc" }}
                 />
               </LineChart>
             </ResponsiveContainer>

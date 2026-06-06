@@ -163,6 +163,38 @@ function intervalLabel(minutes: number): string {
   return `${h}h`;
 }
 
+// ─── Glass asset card color tokens ───────────────────────────────────────────
+
+const GLASS_STATUS: Record<
+  string,
+  { stripe: string; glow: string; ring: string; shimmer: string }
+> = {
+  clean: {
+    stripe: "#22c55e",
+    glow: "rgba(34,197,94,0.10)",
+    ring: "rgba(34,197,94,0.14)",
+    shimmer: "rgba(34,197,94,0.04)",
+  },
+  suspicious: {
+    stripe: "#eab308",
+    glow: "rgba(234,179,8,0.10)",
+    ring: "rgba(234,179,8,0.14)",
+    shimmer: "rgba(234,179,8,0.04)",
+  },
+  threat: {
+    stripe: "#ef4444",
+    glow: "rgba(239,68,68,0.13)",
+    ring: "rgba(239,68,68,0.18)",
+    shimmer: "rgba(239,68,68,0.05)",
+  },
+  unknown: {
+    stripe: "#52525b",
+    glow: "rgba(82,82,91,0.08)",
+    ring: "rgba(82,82,91,0.10)",
+    shimmer: "rgba(82,82,91,0.03)",
+  },
+};
+
 // ─── Asset Card ───────────────────────────────────────────────────────────────
 
 function AssetCard({
@@ -176,101 +208,101 @@ function AssetCard({
 }) {
   const router = useRouter();
   const statusCfg = STATUS_CONFIG[asset.last_status] ?? STATUS_CONFIG.unknown;
+  const glass = GLASS_STATUS[asset.last_status] ?? GLASS_STATUS.unknown;
   const flaggedCount = asset.checks_total - asset.checks_passed;
-  const healthPct = asset.checks_total > 0
-    ? (asset.checks_passed / asset.checks_total) * 100
-    : 100;
+  const healthPct =
+    asset.checks_total > 0 ? (asset.checks_passed / asset.checks_total) * 100 : 100;
   const displayType = asset.type === "cidr" ? "CIDR" : asset.type.toUpperCase();
-
-  const enabledChecks = CHECK_OPTIONS.filter(
-    (opt) => asset.checks_enabled[opt.key] === true
-  );
-
-  const healthColor =
-    flaggedCount === 0 ? "bg-green-500" : flaggedCount === 1 ? "bg-yellow-500" : "bg-red-500";
+  const enabledChecks = CHECK_OPTIONS.filter((opt) => asset.checks_enabled[opt.key] === true);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.38,
-        delay: Math.min(index * 0.055, 0.38),
-        ease: "easeOut",
-      }}
-      whileHover={{ y: -2, transition: { duration: 0.18 } }}
-      className="group relative cursor-pointer rounded-xl border border-border/70 bg-card overflow-hidden"
+      transition={{ duration: 0.4, delay: Math.min(index * 0.06, 0.36), ease: "easeOut" }}
+      whileHover={{ y: -3, transition: { duration: 0.2 } }}
+      className="group relative cursor-pointer rounded-2xl overflow-hidden"
       style={{
-        boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
+        background: "rgba(255,255,255,0.035)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        boxShadow: `0 0 0 1px ${glass.ring}, 0 8px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)`,
       }}
       onClick={() => router.push(`/assets/${asset.id}`)}
     >
-      {/* Status color bar — top edge */}
+      {/* Left status stripe */}
       <div
-        className="absolute inset-x-0 top-0 h-[2px] transition-opacity duration-300"
-        style={{ background: statusCfg.barColor }}
+        className="absolute inset-y-0 left-0 w-[3px] rounded-l-2xl transition-opacity duration-300"
+        style={{ background: glass.stripe, boxShadow: `0 0 12px 1px ${glass.glow}` }}
       />
 
-      {/* Hover glow overlay */}
+      {/* Hover shimmer overlay */}
       <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none"
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
         style={{
-          background: `radial-gradient(ellipse 90% 50% at 50% -10%, ${statusCfg.glowColor}, transparent 70%)`,
+          background: `radial-gradient(ellipse 85% 55% at 15% 50%, ${glass.shimmer}, transparent 65%)`,
         }}
       />
 
-      <div className="relative p-5 pt-5">
-        {/* Row 1: status dot + type + interval */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {/* Animated status dot */}
-            <span className="relative flex h-2 w-2 shrink-0">
-              {statusCfg.pulse && (
-                <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-70 animate-ping" />
-              )}
-              <span
-                className={cn(
-                  "relative inline-flex h-2 w-2 rounded-full",
-                  statusCfg.dotClass
-                )}
-              />
-            </span>
-            {/* Type pill */}
-            <span className="text-[9px] uppercase tracking-widest font-mono font-semibold text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">
-              {displayType}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className={cn("text-[9px] px-1.5 py-0 h-4", statusCfg.badgeClass)}
-            >
-              {statusCfg.label}
-            </Badge>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
-              {relativeTime(asset.last_checked_at)}
-            </span>
-          </div>
+      {/* Inner top highlight */}
+      <div
+        className="absolute inset-x-0 top-0 h-px pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.08) 70%, transparent 95%)",
+        }}
+      />
+
+      <div className="relative pl-6 pr-5 py-5">
+        {/* Row 1: name + status badge */}
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <p className="font-semibold text-[15px] text-foreground leading-snug truncate">
+            {asset.name}
+          </p>
+          <Badge
+            variant="outline"
+            className={cn("shrink-0 text-[9px] px-1.5 py-0 h-4 mt-0.5", statusCfg.badgeClass)}
+          >
+            {statusCfg.label}
+          </Badge>
         </div>
 
-        {/* Row 2: Name */}
-        <p className="font-semibold text-[15px] text-foreground leading-snug truncate mb-0.5">
-          {asset.name}
-        </p>
+        {/* Row 2: target + meta */}
+        <div className="flex items-center gap-2 mb-4">
+          {/* Animated dot for threat */}
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            {statusCfg.pulse && (
+              <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping" />
+            )}
+            <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", statusCfg.dotClass)} />
+          </span>
+          <span className="font-mono text-[11px] text-muted-foreground truncate flex-1">
+            {asset.target}
+          </span>
+          <span
+            className="shrink-0 text-[9px] uppercase tracking-widest font-mono font-semibold text-muted-foreground/70"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 4,
+              padding: "1px 6px",
+            }}
+          >
+            {displayType}
+          </span>
+        </div>
 
-        {/* Row 3: Target */}
-        <p className="font-mono text-xs text-muted-foreground truncate mb-4">
-          {asset.target}
-        </p>
-
-        {/* Row 4: Health bar */}
+        {/* Row 3: health bar */}
         {asset.checks_total > 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-muted-foreground">Check health</span>
+              <span className="text-[10px] text-muted-foreground/70 tracking-wide uppercase font-mono">
+                Health
+              </span>
               <span
                 className={cn(
-                  "text-[10px] font-semibold tabular-nums",
+                  "text-[10px] font-semibold tabular-nums font-mono",
                   flaggedCount === 0
                     ? "text-green-400"
                     : flaggedCount === 1
@@ -278,54 +310,94 @@ function AssetCard({
                     : "text-red-400"
                 )}
               >
-                {asset.checks_passed}/{asset.checks_total} passed
+                {asset.checks_passed}/{asset.checks_total}
               </span>
             </div>
-            <div className="h-1 w-full rounded-full bg-border/40 overflow-hidden">
+            {/* Glass-style progress track */}
+            <div
+              className="h-1.5 w-full rounded-full overflow-hidden"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            >
               <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-700",
-                  healthColor
-                )}
-                style={{ width: `${healthPct}%` }}
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${healthPct}%`,
+                  background:
+                    flaggedCount === 0
+                      ? "linear-gradient(90deg, #16a34a, #22c55e)"
+                      : flaggedCount === 1
+                      ? "linear-gradient(90deg, #ca8a04, #eab308)"
+                      : "linear-gradient(90deg, #dc2626, #ef4444)",
+                  boxShadow:
+                    flaggedCount === 0
+                      ? "0 0 8px rgba(34,197,94,0.4)"
+                      : flaggedCount === 1
+                      ? "0 0 8px rgba(234,179,8,0.4)"
+                      : "0 0 8px rgba(239,68,68,0.4)",
+                }}
               />
             </div>
           </div>
         )}
 
-        {/* Row 5: Enabled check badges */}
+        {/* Row 4: check badges */}
         {enabledChecks.length > 0 ? (
           <div className="flex flex-wrap gap-1 mb-4">
             {enabledChecks.slice(0, 6).map((opt) => (
               <span
                 key={opt.key}
-                className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground bg-secondary/40 tracking-wide"
+                className="text-[9px] font-mono font-medium tracking-wide text-muted-foreground/80"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 4,
+                  padding: "2px 6px",
+                }}
               >
                 {CHECK_BADGE_SHORT[opt.key] || opt.key}
               </span>
             ))}
             {enabledChecks.length > 6 && (
-              <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground bg-secondary/40">
+              <span
+                className="text-[9px] font-mono font-medium text-muted-foreground/60"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 4,
+                  padding: "2px 6px",
+                }}
+              >
                 +{enabledChecks.length - 6}
               </span>
             )}
           </div>
         ) : (
           <div className="mb-4">
-            <span className="text-[10px] text-muted-foreground/60 italic">No checks enabled</span>
+            <span className="text-[10px] text-muted-foreground/40 italic">
+              No checks configured
+            </span>
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/40">
-          <span className="text-[10px] text-muted-foreground">
-            Every {intervalLabel(asset.check_interval)}
-          </span>
+        <div
+          className="flex items-center justify-between pt-3"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
+            <span className="font-mono">{relativeTime(asset.last_checked_at)}</span>
+            <span className="opacity-40">·</span>
+            <span>Every {intervalLabel(asset.check_interval)}</span>
+          </div>
           <div className="flex gap-1.5">
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2.5 text-[10px] text-muted-foreground hover:text-foreground border border-border/50 hover:bg-secondary/60 hover:border-border"
+              className="h-6 px-2.5 text-[10px] text-muted-foreground hover:text-foreground"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 onRunChecks(asset.id);
@@ -335,7 +407,12 @@ function AssetCard({
             </Button>
             <Button
               size="sm"
-              className="h-6 px-2.5 text-[10px] bg-primary/90 hover:bg-primary text-primary-foreground"
+              className="h-6 px-2.5 text-[10px] text-primary-foreground"
+              style={{
+                background: "rgba(99,102,241,0.75)",
+                border: "1px solid rgba(99,102,241,0.5)",
+                boxShadow: "0 0 12px rgba(99,102,241,0.25)",
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 router.push(`/assets/${asset.id}`);

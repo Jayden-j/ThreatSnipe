@@ -43,7 +43,7 @@
   --font-sans: Antic, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Signifier, Georgia, serif;
   --font-mono: JetBrains Mono, Courier New, monospace;
-  --radius: 0.35rem;
+  --radius: 0.625rem;
   --shadow-x: 0;
   --shadow-y: 2px;
   --shadow-blur: 2px;
@@ -72,36 +72,36 @@
   --card-foreground: oklch(0.9702 0 0);
   --popover: oklch(0.11 0.010 270);
   --popover-foreground: oklch(0.9702 0 0);
-  --primary: oklch(0.6333 0.0309 154.9039);
-  --primary-foreground: oklch(0 0 0);
+  --primary: oklch(0.5577 0.2091 264.67);
+  --primary-foreground: oklch(1.0000 0 0);
   --secondary: oklch(0.15 0.008 270);
   --secondary-foreground: oklch(0.9702 0 0);
   --muted: oklch(0.15 0.008 270);
   --muted-foreground: oklch(0.7058 0 0);
-  --accent: oklch(0.3709 0.0248 153.9823);
+  --accent: oklch(0.20 0.06 264);
   --accent-foreground: oklch(0.9702 0 0);
   --destructive: oklch(0.6368 0.2078 25.3313);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.22 0.007 270);
+  --border: oklch(0.18 0.006 270);
   --input: oklch(0.11 0.010 270);
-  --ring: oklch(0.6333 0.0309 154.9039);
-  --chart-1: oklch(0.6333 0.0309 154.9039);
+  --ring: oklch(0.5577 0.2091 264.67);
+  --chart-1: oklch(0.5577 0.2091 264.67);
   --chart-2: oklch(0.7209 0.0489 120.9474);
   --chart-3: oklch(0.6744 0.0427 136.0110);
   --chart-4: oklch(0.5510 0.0234 264.3637);
   --chart-5: oklch(0.5096 0.0289 152.3460);
   --sidebar: oklch(0.095 0.011 270);
   --sidebar-foreground: oklch(0.9702 0 0);
-  --sidebar-primary: oklch(0.6333 0.0309 154.9039);
+  --sidebar-primary: oklch(0.5577 0.2091 264.67);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.16 0.009 270);
-  --sidebar-accent-foreground: oklch(0.9702 0 0);
-  --sidebar-border: oklch(0.22 0.007 270);
-  --sidebar-ring: oklch(0.6333 0.0309 154.9039);
+  --sidebar-accent: oklch(0.14 0.035 264);
+  --sidebar-accent-foreground: oklch(0.7509 0.1367 267.81);
+  --sidebar-border: oklch(0.18 0.006 270);
+  --sidebar-ring: oklch(0.5577 0.2091 264.67);
   --font-sans: Antic, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Signifier, Georgia, serif;
   --font-mono: JetBrains Mono, Courier New, monospace;
-  --radius: 0.35rem;
+  --radius: 0.625rem;
   --shadow-x: 0;
   --shadow-y: 4px;
   --shadow-blur: 2px;
@@ -182,7 +182,7 @@
   --tracking-wide: calc(var(--tracking-normal) + 0.025em);
   --tracking-wider: calc(var(--tracking-normal) + 0.05em);
   --tracking-widest: calc(var(--tracking-normal) + 0.1em);
-  --radius: 0.35rem;
+  --radius: 0.625rem;
   --spacing: var(--spacing);
   --letter-spacing: var(--letter-spacing);
   --shadow-offset-y: var(--shadow-offset-y);
@@ -204,4 +204,31 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+}
+
+/* ── Background animation keyframes ─────────────────────────────────────────── */
+
+@keyframes orb-drift-a {
+  0%,  100% { transform: translate(0px, 0px) scale(1); }
+  20%        { transform: translate(60px, -50px) scale(1.07); }
+  45%        { transform: translate(-35px, 70px) scale(0.93); }
+  70%        { transform: translate(45px, 30px) scale(1.04); }
+}
+
+@keyframes orb-drift-b {
+  0%,  100% { transform: translate(0px, 0px) scale(1); }
+  30%        { transform: translate(-65px, 45px) scale(1.06); }
+  60%        { transform: translate(40px, -60px) scale(0.95); }
+}
+
+@keyframes orb-pulse {
+  0%,  100% { opacity: 0.7; }
+  50%        { opacity: 1; }
+}
+
+@keyframes star-twinkle {
+  0%,  100% { opacity: 0;   transform: scale(0.2) rotate(0deg); }
+  30%        { opacity: 0;   transform: scale(0.2) rotate(20deg); }
+  50%        { opacity: 0.65; transform: scale(1)   rotate(45deg); }
+  70%        { opacity: 0;   transform: scale(0.2) rotate(70deg); }
 }

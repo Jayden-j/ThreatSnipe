@@ -124,7 +124,7 @@ export function IpResultCard({ data }: IpResultCardProps) {
   );
 
   return (
-    <Card className="border-border bg-card">
+    <Card className="border-border/60 bg-card" style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.3)" }}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="min-w-0 flex-1">
           <CardTitle className="font-mono text-xl text-foreground">
@@ -167,7 +167,7 @@ export function IpResultCard({ data }: IpResultCardProps) {
 
         {/* Info cards grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-3 rounded-md bg-secondary p-3">
+          <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/40 p-3">
             <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Country</p>
@@ -176,7 +176,7 @@ export function IpResultCard({ data }: IpResultCardProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-md bg-secondary p-3">
+          <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/40 p-3">
             <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">ISP</p>
@@ -185,7 +185,7 @@ export function IpResultCard({ data }: IpResultCardProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-md bg-secondary p-3">
+          <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/40 p-3">
             <FileWarning className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Total Reports</p>
@@ -194,7 +194,7 @@ export function IpResultCard({ data }: IpResultCardProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-md bg-secondary p-3">
+          <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/40 p-3">
             <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Last Reported</p>

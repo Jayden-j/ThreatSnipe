@@ -11,9 +11,9 @@ interface ThreatBreakdownProps {
 }
 
 const COLORS = {
-  CLEAN: "#00ff88",
-  SUSPICIOUS: "#ffaa00",
-  THREAT: "#ff4444",
+  CLEAN: "#22c55e",
+  SUSPICIOUS: "#f59e0b",
+  THREAT: "#ef4444",
 };
 
 export function ThreatBreakdown({ clean, suspicious, threat }: ThreatBreakdownProps) {
@@ -55,10 +55,10 @@ export function ThreatBreakdown({ clean, suspicious, threat }: ThreatBreakdownPr
                   <Tooltip
                     cursor={{ fill: "transparent" }}
                     contentStyle={{
-                      backgroundColor: "#1a1a2e",
-                      border: "1px solid #00ff88",
+                      backgroundColor: "#0f0f1a",
+                      border: "1px solid rgba(99,102,241,0.35)",
                       borderRadius: "8px",
-                      color: "#fff",
+                      color: "#f1f5f9",
                     }}
                     formatter={(value, name) => [value, name]}
                   />

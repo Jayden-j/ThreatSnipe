@@ -94,6 +94,38 @@ export default async function DashboardPage() {
   const assetCount = assets?.length ?? 0;
   const unreadAlerts = alerts?.filter((a) => !a.read).length ?? 0;
 
+  // ── Threat trend (this week vs prior week, in-memory from existing data) ────
+  const now = Date.now();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const weekStart = now - sevenDaysMs;
+  const twoWeeksStart = now - 2 * sevenDaysMs;
+
+  const ipThreatsThisWeek =
+    scans?.filter(
+      (s) => s.threat_level === "THREAT" && new Date(s.created_at).getTime() >= weekStart
+    ).length ?? 0;
+  const ipThreatsLastWeek =
+    scans?.filter(
+      (s) =>
+        s.threat_level === "THREAT" &&
+        new Date(s.created_at).getTime() >= twoWeeksStart &&
+        new Date(s.created_at).getTime() < weekStart
+    ).length ?? 0;
+  const domainThreatsThisWeek =
+    domainScans?.filter(
+      (s) => s.verdict === "MALICIOUS" && new Date(s.created_at).getTime() >= weekStart
+    ).length ?? 0;
+  const domainThreatsLastWeek =
+    domainScans?.filter(
+      (s) =>
+        s.verdict === "MALICIOUS" &&
+        new Date(s.created_at).getTime() >= twoWeeksStart &&
+        new Date(s.created_at).getTime() < weekStart
+    ).length ?? 0;
+
+  const threatDelta =
+    ipThreatsThisWeek + domainThreatsThisWeek - (ipThreatsLastWeek + domainThreatsLastWeek);
+
   // ── Scans over time (last 7 days) ───────────────────────────────────────────
   const scansOverTime = (() => {
     const grouped: Record<string, number> = {};
@@ -169,6 +201,7 @@ export default async function DashboardPage() {
           label="Threats"
           value={threatsDetected}
           variant={threatsDetected > 0 ? "threat" : "default"}
+          trend={{ delta: threatDelta }}
         />
         <KpiCard
           icon={ShieldCheck}

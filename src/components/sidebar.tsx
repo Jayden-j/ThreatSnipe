@@ -108,11 +108,12 @@ export function Sidebar({
                 href={item.href}
                 onClick={handleNavClick}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200 border",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    ? "border-[rgba(99,102,241,0.25)] text-[#a5b4fc]"
+                    : "border-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
+                style={isActive ? { background: "rgba(99,102,241,0.15)" } : undefined}
               >
                 <Icon className="h-4 w-4" />
                 <span className="flex-1">{item.label}</span>
@@ -133,11 +134,12 @@ export function Sidebar({
                 href={item.href}
                 onClick={handleNavClick}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200 border",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    ? "border-[rgba(99,102,241,0.25)] text-[#a5b4fc]"
+                    : "border-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
+                style={isActive ? { background: "rgba(99,102,241,0.15)" } : undefined}
               >
                 <Icon className="h-4 w-4" />
                 <span className="flex-1">{item.label}</span>
@@ -158,11 +160,12 @@ export function Sidebar({
                 href={item.href}
                 onClick={handleNavClick}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200 border",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    ? "border-[rgba(99,102,241,0.25)] text-[#a5b4fc]"
+                    : "border-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
+                style={isActive ? { background: "rgba(99,102,241,0.15)" } : undefined}
               >
                 <Icon className="h-4 w-4" />
                 <span className="flex-1">{item.label}</span>

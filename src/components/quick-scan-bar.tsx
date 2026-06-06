@@ -27,7 +27,7 @@ export function QuickScanBar() {
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
-          className="pl-9 bg-card border-border font-mono text-sm placeholder:font-sans"
+          className="pl-9 bg-card border-border/60 font-mono text-sm placeholder:font-sans placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:ring-primary/30"
           placeholder="Quick scan — enter an IP or domain and press Enter..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}

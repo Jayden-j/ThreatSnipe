@@ -60,10 +60,10 @@ export function AlertsWidget({ alerts }: { alerts: AlertEntry[] }) {
   const unread = alerts.filter((a) => !a.read).length;
 
   return (
-    <Card className="border-border bg-card">
+    <Card className="border-border/60 bg-card" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.25)" }}>
       <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-6">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <Bell className="h-4 w-4 text-primary" />
+          <Bell className="h-4 w-4 text-primary" strokeWidth={1.8} />
           Alerts
           {unread > 0 && (
             <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">

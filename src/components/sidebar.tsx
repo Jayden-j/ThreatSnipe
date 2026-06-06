@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 import {
   LayoutDashboard,
   Search,
@@ -87,9 +86,10 @@ export function Sidebar({
       >
         {/* Branding */}
         <div className="flex items-center gap-2 border-b border-border px-6 h-14">
-          <Image src="/logo.png" alt="Centry" width={28} height={28} className="rounded-sm" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/ThreatSnipe%20logo.svg" alt="ThreatSnipe" width={28} height={28} className="rounded-sm" />
           <span className="text-lg font-bold tracking-tight text-foreground">
-            Centry
+            ThreatSnipe
           </span>
         </div>
 

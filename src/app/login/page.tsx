@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, GitBranch, Globe, AlertCircle } from "lucide-react";
+import { GitBranch, Globe, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -75,8 +75,9 @@ export default function LoginPage() {
     <div className="flex min-h-[80vh] items-center justify-center">
       <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="items-center space-y-2 pb-6">
-          <Shield className="h-10 w-10 text-primary" />
-          <h1 className="text-xl font-bold text-foreground">Centry</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/ThreatSnipe%20logo.svg" alt="ThreatSnipe" width={40} height={40} />
+          <h1 className="text-xl font-bold text-foreground">ThreatSnipe</h1>
           <p className="text-sm text-muted-foreground">Sign in to your account</p>
         </CardHeader>
         <CardContent className="space-y-4">

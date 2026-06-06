@@ -3,21 +3,30 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
-import { Sidebar } from "@/components/sidebar";
-import { PageTitle } from "@/components/page-title";
-import { TopbarActions } from "@/components/topbar-actions";
+import { Crosshair, LayoutDashboard, FolderKanban } from "lucide-react";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { NavBar } from "@/components/ui/tubelight-navbar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { AlertBell } from "@/components/alert-bell";
+import { AccountDropdown } from "@/components/account-dropdown";
+
+const navItems = [
+  { name: "Snipe",     url: "#",           icon: Crosshair,       panel: true as const },
+  { name: "Dashboard", url: "/dashboard",  icon: LayoutDashboard                       },
+  { name: "Assets",    url: "/assets",     icon: FolderKanban                          },
+];
 
 export default function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const [isSnipeOpen, setIsSnipeOpen] = useState(false);
 
   return (
     <div className="dark bg-background text-foreground">
-      {/* Dot grid overlay — matches landing page atmosphere */}
+      {/* Dot grid overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-0"
         style={{
@@ -33,7 +42,6 @@ export default function AppLayout({
         className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
         aria-hidden="true"
       >
-        {/* Primary indigo orb — drifts slowly */}
         <div
           className="absolute rounded-full"
           style={{
@@ -47,7 +55,6 @@ export default function AppLayout({
             animation: "orb-drift-a 22s ease-in-out infinite, orb-pulse 8s ease-in-out infinite",
           }}
         />
-        {/* Secondary purple orb — drifts on offset phase */}
         <div
           className="absolute rounded-full"
           style={{
@@ -61,7 +68,6 @@ export default function AppLayout({
             animation: "orb-drift-b 28s ease-in-out infinite, orb-pulse 11s ease-in-out infinite 3s",
           }}
         />
-        {/* Accent micro-orb — subtle teal hint */}
         <div
           className="absolute rounded-full"
           style={{
@@ -78,14 +84,14 @@ export default function AppLayout({
 
         {/* Sparkle stars */}
         {([
-          { top: "12%",  left: "22%",  d: "4.2s",  delay: "0s"    },
-          { top: "38%",  left: "67%",  d: "3.8s",  delay: "1.4s"  },
-          { top: "62%",  left: "15%",  d: "5.1s",  delay: "0.7s"  },
-          { top: "20%",  left: "80%",  d: "3.3s",  delay: "2.1s"  },
-          { top: "75%",  left: "50%",  d: "4.6s",  delay: "0.3s"  },
-          { top: "50%",  left: "38%",  d: "3.6s",  delay: "1.9s"  },
-          { top: "85%",  left: "72%",  d: "5.4s",  delay: "0.9s"  },
-          { top: "8%",   left: "55%",  d: "4.0s",  delay: "3.0s"  },
+          { top: "12%", left: "22%", d: "4.2s", delay: "0s"   },
+          { top: "38%", left: "67%", d: "3.8s", delay: "1.4s" },
+          { top: "62%", left: "15%", d: "5.1s", delay: "0.7s" },
+          { top: "20%", left: "80%", d: "3.3s", delay: "2.1s" },
+          { top: "75%", left: "50%", d: "4.6s", delay: "0.3s" },
+          { top: "50%", left: "38%", d: "3.6s", delay: "1.9s" },
+          { top: "85%", left: "72%", d: "5.4s", delay: "0.9s" },
+          { top: "8%",  left: "55%", d: "4.0s", delay: "3.0s" },
         ] as const).map((s, i) => (
           <div
             key={i}
@@ -100,30 +106,46 @@ export default function AppLayout({
         ))}
       </div>
 
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
-      <div className="relative z-10 min-h-screen ml-0 lg:ml-60">
-        <header className="sticky top-0 z-30 grid h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-border bg-background/80 px-6 backdrop-blur-md">
-          <div />
-          <PageTitle />
-          <div className="flex justify-end">
-            <TopbarActions
-              onMenuClick={() => setIsSidebarOpen((prev) => !prev)}
-            />
+      <SidebarProvider
+        open={isSnipeOpen}
+        onOpenChange={setIsSnipeOpen}
+        style={
+          {
+            "--sidebar-width": "13rem",
+            "--sidebar-width-mobile": "13rem",
+          } as React.CSSProperties
+        }
+      >
+        <AppSidebar />
+
+        {/* Main content area — flex-1 sibling to the fixed sidebar */}
+        <div className="relative flex-1 min-h-screen">
+          {/* Floating pill navbar */}
+          <NavBar
+            items={navItems}
+            onItemClick={(item) => {
+              if (item.name === "Snipe") setIsSnipeOpen((prev) => !prev);
+            }}
+            snipePanelOpen={isSnipeOpen}
+          />
+
+          {/* Right-side controls */}
+          <div className="fixed top-0 right-0 z-50 flex items-center gap-2 pt-[1.625rem] pr-6">
+            <AlertBell />
+            <AccountDropdown />
           </div>
-        </header>
-        <motion.main
-          key={pathname}
-          className="p-6"
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-        >
-          {children}
-        </motion.main>
-      </div>
+
+          <motion.main
+            key={pathname}
+            className="p-6 pt-24 pb-28 sm:pb-6"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
+            {children}
+          </motion.main>
+        </div>
+      </SidebarProvider>
     </div>
   );
 }

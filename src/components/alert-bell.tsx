@@ -102,13 +102,16 @@ export function AlertBell() {
   useEffect(() => {
     if (pathname === "/alerts" && userId) {
       const supabase = createClient();
-      supabase
-        .from("alerts")
-        .update({ read: true })
-        .eq("user_id", userId)
-        .eq("read", false)
-        .then(() => { if (isMounted.current) setUnreadCount(0); })
-        .catch(() => {});
+      void (async () => {
+        try {
+          await supabase
+            .from("alerts")
+            .update({ read: true })
+            .eq("user_id", userId)
+            .eq("read", false);
+          if (isMounted.current) setUnreadCount(0);
+        } catch {}
+      })();
     }
   }, [pathname, userId]);
 

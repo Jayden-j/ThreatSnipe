@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createServiceClient } from "@/lib/supabase/service";
 import { Socket } from "net";
 import { lookup } from "dns/promises";
 
@@ -222,53 +221,6 @@ export async function GET(request: NextRequest) {
           .select("id")
           .single();
 
-        // Evaluate alert: check high-risk ports and open count
-        if (scanRecord?.id && (openCount > 0)) {
-          const highRiskOpen = openPorts.filter((p) => HIGH_RISK_PORTS.includes(p.port));
-          const highRiskNames = highRiskOpen.map((p) => `${p.service} (${p.port})`);
-
-          let severity: string;
-          let title: string;
-          let message: string;
-
-          if (highRiskOpen.length > 0) {
-            severity = "critical";
-            title = `Port Risk: ${trimmedTarget}`;
-            message = `${openCount} open port${openCount === 1 ? "" : "s"} including high-risk: ${highRiskNames.join(", ")}`;
-          } else if (openCount >= 5) {
-            severity = "high";
-            title = `Port Risk: ${trimmedTarget}`;
-            message = `${openCount} open port${openCount === 1 ? "" : "s"} detected - above normal threshold`;
-          } else {
-            severity = "medium";
-            title = `Port Risk: ${trimmedTarget}`;
-            message = `${openCount} open port${openCount === 1 ? "" : "s"} detected`;
-          }
-
-          try {
-            const serviceSupabase = createServiceClient();
-            await serviceSupabase.from("alerts").insert({
-              user_id: user.id,
-              source_table: "port_scans",
-              source_record_id: scanRecord.id,
-              severity,
-              category: "port_risk",
-              title,
-              message,
-              metadata: {
-                target: trimmedTarget,
-                host,
-                open_count: openCount,
-                high_risk_ports: highRiskOpen.map((p) => ({
-                  port: p.port,
-                  service: p.service,
-                })),
-              },
-            });
-          } catch (alertError) {
-            console.error("Failed to insert alert:", alertError);
-          }
-        }
       }
     } catch (dbError) {
       console.error("Failed to save port scan to database:", dbError);

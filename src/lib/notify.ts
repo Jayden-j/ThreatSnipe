@@ -3,16 +3,26 @@ import { createServiceClient } from "@/lib/supabase/service";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type AlertSeverity = "critical" | "high" | "medium" | "low";
-export type AlertCategory = "ip_threat" | "malicious_domain" | "port_risk";
+export type AlertCheckType =
+  | "ip_lookup"
+  | "domain_lookup"
+  | "port_scan"
+  | "blacklist"
+  | "ssl"
+  | "dns_records"
+  | "whois"
+  | "email_security"
+  | "server_status";
 
 export interface AlertPayload {
   userId: string;
   severity: AlertSeverity;
-  category: AlertCategory;
+  checkType: AlertCheckType;
+  assetName: string;
+  assetTarget: string;
   title: string;
-  target: string;
   details: Record<string, string | number>;
-  rescanPath?: string;
+  assetPath?: string;
 }
 
 export type NotifyResult = {
@@ -36,13 +46,18 @@ const SEVERITY_LABEL: Record<AlertSeverity, string> = {
   low: "LOW",
 };
 
-const CATEGORY_LABEL: Record<AlertCategory, string> = {
-  ip_threat: "IP Threat Detected",
-  malicious_domain: "Malicious Domain Detected",
-  port_risk: "High-Risk Ports Open",
+const CHECK_TYPE_LABEL: Record<AlertCheckType, string> = {
+  ip_lookup: "IP Lookup",
+  domain_lookup: "Domain Scan",
+  port_scan: "Port Scan",
+  blacklist: "Blacklist Check",
+  ssl: "SSL Certificate",
+  dns_records: "DNS Records",
+  whois: "WHOIS",
+  email_security: "Email Security",
+  server_status: "Server Status",
 };
 
-// Discord embed colors (integer form of hex)
 const DISCORD_COLORS: Record<AlertSeverity, number> = {
   critical: 0xff3b3b,
   high: 0xff7a00,
@@ -50,17 +65,18 @@ const DISCORD_COLORS: Record<AlertSeverity, number> = {
   low: 0x3b82f6,
 };
 
-// ─── Discord ─────────────────────────────────────────────────────────────────
+// ─── Discord ──────────────────────────────────────────────────────────────────
 
 function buildDiscordPayload(payload: AlertPayload): object {
-  const { severity, category, title, target, details, rescanPath } = payload;
+  const { severity, checkType, assetName, assetTarget, title, details, assetPath } = payload;
   const emoji = SEVERITY_EMOJI[severity];
-  const catLabel = CATEGORY_LABEL[category];
+  const checkLabel = CHECK_TYPE_LABEL[checkType];
 
   const fields = [
-    { name: "Target", value: `\`${target}\``, inline: true },
+    { name: "Asset", value: `**${assetName}**`, inline: true },
+    { name: "Target", value: `\`${assetTarget}\``, inline: true },
+    { name: "Check", value: checkLabel, inline: true },
     { name: "Severity", value: `${emoji} ${SEVERITY_LABEL[severity]}`, inline: true },
-    { name: "​", value: "​", inline: true }, // spacer
     ...Object.entries(details).map(([key, val]) => ({
       name: key,
       value: String(val),
@@ -69,7 +85,7 @@ function buildDiscordPayload(payload: AlertPayload): object {
   ];
 
   const embed: Record<string, unknown> = {
-    title: `${emoji} ${catLabel}`,
+    title: `${emoji} ${SEVERITY_LABEL[severity]} — ${checkLabel}`,
     description: title,
     color: DISCORD_COLORS[severity],
     fields,
@@ -77,8 +93,8 @@ function buildDiscordPayload(payload: AlertPayload): object {
     timestamp: new Date().toISOString(),
   };
 
-  if (rescanPath) {
-    embed.url = `https://app.threatsnipe.io${rescanPath}`;
+  if (assetPath) {
+    embed.url = `https://app.threatsnipe.io${assetPath}`;
   }
 
   return { embeds: [embed] };
@@ -87,10 +103,10 @@ function buildDiscordPayload(payload: AlertPayload): object {
 // ─── Slack ────────────────────────────────────────────────────────────────────
 
 function buildSlackPayload(payload: AlertPayload): object {
-  const { severity, category, title, target, details, rescanPath } = payload;
+  const { severity, checkType, assetName, assetTarget, title, details, assetPath } = payload;
   const emoji = SEVERITY_EMOJI[severity];
   const sevLabel = SEVERITY_LABEL[severity];
-  const catLabel = CATEGORY_LABEL[category];
+  const checkLabel = CHECK_TYPE_LABEL[checkType];
 
   const detailText = Object.entries(details)
     .map(([k, v]) => `*${k}:* ${v}`)
@@ -101,7 +117,7 @@ function buildSlackPayload(payload: AlertPayload): object {
       type: "header",
       text: {
         type: "plain_text",
-        text: `${emoji} ${sevLabel} — ${catLabel}`,
+        text: `${emoji} ${sevLabel} — ${checkLabel}`,
         emoji: true,
       },
     },
@@ -109,7 +125,7 @@ function buildSlackPayload(payload: AlertPayload): object {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${title}*\nTarget: \`${target}\``,
+        text: `*${title}*\nAsset: *${assetName}*  ·  Target: \`${assetTarget}\``,
       },
     },
   ];
@@ -123,14 +139,14 @@ function buildSlackPayload(payload: AlertPayload): object {
 
   blocks.push({ type: "divider" });
 
-  if (rescanPath) {
+  if (assetPath) {
     blocks.push({
       type: "actions",
       elements: [
         {
           type: "button",
-          text: { type: "plain_text", text: "Re-scan →", emoji: true },
-          url: `https://app.threatsnipe.io${rescanPath}`,
+          text: { type: "plain_text", text: "View Asset →", emoji: true },
+          url: `https://app.threatsnipe.io${assetPath}`,
           style: severity === "critical" || severity === "high" ? "danger" : "primary",
         },
       ],
@@ -180,10 +196,6 @@ async function sendToSlack(webhookUrl: string, payload: AlertPayload): Promise<b
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/**
- * Fetch webhook URLs from user_settings and fire notifications
- * to any configured channels. Non-blocking — errors are swallowed.
- */
 export async function sendAlertNotification(payload: AlertPayload): Promise<NotifyResult> {
   const result: NotifyResult = { discord: "skipped", slack: "skipped" };
 
@@ -214,16 +226,12 @@ export async function sendAlertNotification(payload: AlertPayload): Promise<Noti
       ? slackOk ? "sent" : "error"
       : "skipped";
   } catch {
-    // Never throw — this is fire-and-forget
+    // Never throw — fire-and-forget
   }
 
   return result;
 }
 
-/**
- * Send a test notification to explicit webhook URLs (no DB lookup).
- * Used by the settings page test button.
- */
 export async function sendTestNotification(
   discordWebhookUrl: string | null,
   slackWebhookUrl: string | null
@@ -231,16 +239,17 @@ export async function sendTestNotification(
   const testPayload: AlertPayload = {
     userId: "test",
     severity: "critical",
-    category: "ip_threat",
+    checkType: "ip_lookup",
+    assetName: "prod-server-01",
+    assetTarget: "185.220.101.45",
     title: "Test alert from ThreatSnipe",
-    target: "185.220.101.45",
     details: {
       "Abuse Score": "95/100",
       Country: "RU",
       ISP: "Tor Exit Node",
       Reports: "847",
     },
-    rescanPath: "/lookup",
+    assetPath: "/assets",
   };
 
   const result: NotifyResult = { discord: "skipped", slack: "skipped" };

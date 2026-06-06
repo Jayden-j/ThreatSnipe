@@ -68,14 +68,15 @@ export async function POST(request: NextRequest) {
     const {
       userId,
       severity,
-      category,
+      checkType,
+      assetName,
+      assetTarget,
       title,
-      target,
       details,
-      rescanPath,
+      assetPath,
     } = body as AlertPayload & { userId: string };
 
-    if (!userId || !severity || !category || !title || !target) {
+    if (!userId || !severity || !checkType || !title || !assetTarget) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
@@ -85,11 +86,12 @@ export async function POST(request: NextRequest) {
     const payload: AlertPayload = {
       userId,
       severity,
-      category,
+      checkType,
+      assetName: assetName ?? assetTarget,
+      assetTarget,
       title,
-      target,
       details: details ?? {},
-      rescanPath,
+      assetPath,
     };
 
     const result = await sendAlertNotification(payload);

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createServiceClient } from "@/lib/supabase/service";
-import { sendAlertNotification } from "@/lib/notify";
 
 interface VirusTotalResponse {
   data?: {
@@ -207,51 +205,6 @@ export async function GET(request: NextRequest) {
           .select("id")
           .single();
 
-        // Insert alert based on domain verdict
-        if (verdict !== "CLEAN" && scanRecord?.id) {
-          const severity =
-            malicious > 0 ? "critical" : suspicious > 3 ? "high" : "medium";
-
-          try {
-            const serviceSupabase = createServiceClient();
-            await serviceSupabase.from("alerts").insert({
-              user_id: user.id,
-              source_table: "domain_scans",
-              source_record_id: scanRecord.id,
-              severity,
-              category: "malicious_domain",
-              title: `${isIp ? "IP" : "Domain"} Alert: ${target}`,
-              message: `${malicious} malicious, ${suspicious} suspicious — Reputation: ${attrs.reputation}`,
-              metadata: {
-                [isIp ? "ip_address" : "domain"]: target,
-                malicious,
-                suspicious,
-                reputation: attrs.reputation,
-                verdict,
-                input_type: isIp ? "ip" : "domain",
-              },
-            });
-          } catch (alertError) {
-            console.error("Failed to insert alert:", alertError);
-          }
-
-          // Fire notification for MALICIOUS verdicts (non-blocking)
-          if (verdict === "MALICIOUS") {
-            sendAlertNotification({
-              userId: user.id,
-              severity: severity as "critical" | "high" | "medium" | "low",
-              category: "malicious_domain",
-              title: `Malicious ${isIp ? "IP" : "Domain"}: ${target}`,
-              target,
-              details: {
-                "Malicious Engines": malicious,
-                "Suspicious Engines": suspicious,
-                Reputation: attrs.reputation,
-              },
-              rescanPath: `/domain?domain=${encodeURIComponent(target)}`,
-            }).catch((err) => console.error("Notify error:", err));
-          }
-        }
       }
     } catch (dbError) {
       // Log but don't fail the request if scan save fails

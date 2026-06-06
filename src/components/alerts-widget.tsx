@@ -2,42 +2,77 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bell, ArrowRight, ShieldAlert, Globe, Terminal } from "lucide-react";
+import {
+  Bell,
+  ArrowRight,
+  ShieldAlert,
+  Globe,
+  Network,
+  Ban,
+  Lock,
+  Server,
+  FileSearch,
+  Mail,
+  Activity,
+} from "lucide-react";
 
 type Severity = "critical" | "high" | "medium" | "low";
-type Category = "ip_threat" | "malicious_domain" | "port_risk";
+type CheckType =
+  | "ip_lookup"
+  | "domain_lookup"
+  | "port_scan"
+  | "blacklist"
+  | "ssl"
+  | "dns_records"
+  | "whois"
+  | "email_security"
+  | "server_status";
 
 export type AlertEntry = {
   id: string;
   severity: Severity;
-  category: Category;
+  check_type: CheckType;
+  asset_name: string;
+  asset_target: string;
   title: string;
   message: string | null;
   created_at: string;
   read: boolean;
 };
 
-const SEV: Record<Severity, { badge: string; dot: string; border: string }> = {
+const SEV: Record<Severity, { badge: string; dot: string; accent: string }> = {
   critical: {
     badge: "border-red-500/30 bg-red-500/10 text-red-400",
     dot: "bg-red-500",
-    border: "border-l-red-500",
+    accent: "border-l-red-500",
   },
   high: {
     badge: "border-orange-500/30 bg-orange-500/10 text-orange-400",
     dot: "bg-orange-500",
-    border: "border-l-orange-500",
+    accent: "border-l-orange-500",
   },
   medium: {
     badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",
     dot: "bg-yellow-400",
-    border: "border-l-yellow-400",
+    accent: "border-l-yellow-400",
   },
   low: {
     badge: "border-blue-400/30 bg-blue-500/10 text-blue-400",
     dot: "bg-blue-400",
-    border: "border-l-blue-400",
+    accent: "border-l-blue-400",
   },
+};
+
+const CHECK_ICON: Record<CheckType, React.ElementType> = {
+  ip_lookup: ShieldAlert,
+  domain_lookup: Globe,
+  port_scan: Network,
+  blacklist: Ban,
+  ssl: Lock,
+  dns_records: Server,
+  whois: FileSearch,
+  email_security: Mail,
+  server_status: Activity,
 };
 
 function relTime(dateStr: string): string {
@@ -48,12 +83,6 @@ function relTime(dateStr: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
-}
-
-function CategoryIcon({ cat }: { cat: Category }) {
-  if (cat === "ip_threat") return <ShieldAlert className="h-3.5 w-3.5 text-red-400" />;
-  if (cat === "malicious_domain") return <Globe className="h-3.5 w-3.5 text-orange-400" />;
-  return <Terminal className="h-3.5 w-3.5 text-yellow-400" />;
 }
 
 export function AlertsWidget({ alerts }: { alerts: AlertEntry[] }) {
@@ -79,6 +108,7 @@ export function AlertsWidget({ alerts }: { alerts: AlertEntry[] }) {
           <ArrowRight className="h-3 w-3" />
         </Link>
       </CardHeader>
+
       <CardContent className="p-0 pb-2">
         {alerts.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-10">
@@ -86,37 +116,44 @@ export function AlertsWidget({ alerts }: { alerts: AlertEntry[] }) {
             <p className="text-sm text-muted-foreground">No alerts</p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border/60">
             {alerts.map((alert) => {
               const sev = SEV[alert.severity] ?? SEV.low;
+              const Icon = CHECK_ICON[alert.check_type] ?? ShieldAlert;
+
               return (
                 <div
                   key={alert.id}
                   className={cn(
-                    "flex items-start gap-3 border-l-2 px-5 py-3 transition-colors hover:bg-secondary/40",
-                    sev.border,
-                    !alert.read && "bg-secondary/15"
+                    "flex items-start gap-3 border-l-2 px-5 py-3 transition-colors hover:bg-secondary/30",
+                    sev.accent,
+                    !alert.read && "bg-secondary/10"
                   )}
                 >
-                  <div className="mt-0.5 shrink-0">
-                    <CategoryIcon cat={alert.category} />
-                  </div>
+                  <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <Badge
                         variant="outline"
-                        className={cn("text-[9px] px-1.5 py-0 h-4", sev.badge)}
+                        className={cn("h-4 px-1.5 text-[9px]", sev.badge)}
                       >
                         {alert.severity.toUpperCase()}
                       </Badge>
-                      <p className="text-xs font-medium text-foreground truncate">
-                        {alert.title}
-                      </p>
+                      {alert.asset_name && (
+                        <p className="text-xs font-medium text-foreground truncate">
+                          {alert.asset_name}
+                        </p>
+                      )}
                     </div>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    <p className="mt-0.5 text-[10px] text-muted-foreground/70 truncate">
+                      {alert.title}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground/50 tabular-nums">
                       {relTime(alert.created_at)}
                     </p>
                   </div>
+
                   {!alert.read && (
                     <span className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", sev.dot)} />
                   )}

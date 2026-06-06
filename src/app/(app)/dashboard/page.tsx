@@ -51,7 +51,7 @@ export default async function DashboardPage() {
       .eq("user_id", user.id),
     supabase
       .from("alerts")
-      .select("id, severity, category, title, message, created_at, read")
+      .select("id, severity, check_type, asset_name, asset_target, title, message, created_at, read")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5),

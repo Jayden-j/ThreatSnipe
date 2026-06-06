@@ -61,7 +61,7 @@ export function AccountDropdown() {
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} variant="destructive">
+        <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive focus:bg-destructive/10">
           <LogOut className="opacity-60" />
           <span>Sign Out</span>
         </DropdownMenuItem>

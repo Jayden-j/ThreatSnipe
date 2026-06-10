@@ -1,19 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { Crosshair, LayoutDashboard, FolderKanban } from "lucide-react";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { NavBar } from "@/components/ui/tubelight-navbar";
-import { AppSidebar } from "@/components/app-sidebar";
 import { AlertBell } from "@/components/alert-bell";
 import { AccountDropdown } from "@/components/account-dropdown";
 
 const navItems = [
-  { name: "Snipe",     url: "#",           icon: Crosshair,       panel: true as const },
-  { name: "Dashboard", url: "/dashboard",  icon: LayoutDashboard                       },
-  { name: "Assets",    url: "/assets",     icon: FolderKanban                          },
+  { name: "Snipe",     url: "/snipe",      icon: Crosshair       },
+  { name: "Dashboard", url: "/dashboard",  icon: LayoutDashboard },
+  { name: "Assets",    url: "/assets",     icon: FolderKanban    },
 ];
 
 export default function AppLayout({
@@ -22,7 +19,6 @@ export default function AppLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const [isSnipeOpen, setIsSnipeOpen] = useState(false);
 
   return (
     <div className="dark bg-background text-foreground">
@@ -106,46 +102,27 @@ export default function AppLayout({
         ))}
       </div>
 
-      <SidebarProvider
-        open={isSnipeOpen}
-        onOpenChange={setIsSnipeOpen}
-        style={
-          {
-            "--sidebar-width": "13rem",
-            "--sidebar-width-mobile": "13rem",
-          } as React.CSSProperties
-        }
-      >
-        <AppSidebar />
+      {/* Main content area */}
+      <div className="relative min-h-screen">
+        {/* Floating pill navbar */}
+        <NavBar items={navItems} />
 
-        {/* Main content area — flex-1 sibling to the fixed sidebar */}
-        <div className="relative flex-1 min-h-screen">
-          {/* Floating pill navbar */}
-          <NavBar
-            items={navItems}
-            onItemClick={(item) => {
-              if (item.name === "Snipe") setIsSnipeOpen((prev) => !prev);
-            }}
-            snipePanelOpen={isSnipeOpen}
-          />
-
-          {/* Right-side controls */}
-          <div className="fixed top-0 right-0 z-50 flex items-center gap-2 pt-[1.625rem] pr-6">
-            <AlertBell />
-            <AccountDropdown />
-          </div>
-
-          <motion.main
-            key={pathname}
-            className="p-6 pt-24 pb-28 sm:pb-6"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
-          >
-            {children}
-          </motion.main>
+        {/* Right-side controls */}
+        <div className="fixed top-0 right-0 z-50 flex items-center gap-2 pt-[1.625rem] pr-6">
+          <AlertBell />
+          <AccountDropdown />
         </div>
-      </SidebarProvider>
+
+        <motion.main
+          key={pathname}
+          className="p-6 pt-24 pb-28 sm:pb-6"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+        >
+          {children}
+        </motion.main>
+      </div>
     </div>
   );
 }

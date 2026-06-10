@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Shield } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
@@ -35,15 +35,14 @@ export function LandingNavbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group" aria-label="ThreatSnipe home">
-            <div
-              className="h-8 w-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:shadow-[0_0_24px_rgba(99,102,241,0.45)]"
-              style={{
-                background: "rgba(99,102,241,0.15)",
-                border: "1px solid rgba(99,102,241,0.35)",
-              }}
-            >
-              <Shield className="h-4 w-4 text-indigo-400" strokeWidth={2} />
-            </div>
+            <img
+              src="/ThreatSnipe logo.svg"
+              alt="ThreatSnipe logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.7)]"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
             <span className="font-semibold text-white tracking-tight text-[15px] font-body">
               ThreatSnipe
             </span>

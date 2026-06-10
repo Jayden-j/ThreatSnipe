@@ -18,14 +18,13 @@ interface NavBarProps {
   items: NavItem[]
   className?: string
   onItemClick?: (item: NavItem) => void
-  snipePanelOpen?: boolean
 }
 
-export function NavBar({ items, className, onItemClick, snipePanelOpen }: NavBarProps) {
+export function NavBar({ items, className, onItemClick }: NavBarProps) {
   const pathname = usePathname()
 
   function isItemActive(item: NavItem) {
-    if (item.panel) return snipePanelOpen ?? false
+    if (item.panel) return false
     return item.url !== "#" && pathname.startsWith(item.url)
   }
 

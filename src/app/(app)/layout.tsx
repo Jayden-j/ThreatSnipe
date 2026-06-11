@@ -29,7 +29,7 @@ export default function AppLayout({
         className="pointer-events-none fixed inset-0 z-0"
         style={{
           backgroundImage:
-            "radial-gradient(circle, rgba(99,102,241,0.06) 1px, transparent 1px)",
+            "radial-gradient(circle, rgba(99,102,241,0.09) 1px, transparent 1px)",
           backgroundSize: "28px 28px",
         }}
         aria-hidden="true"
@@ -51,7 +51,7 @@ export default function AppLayout({
             width: 700,
             height: 700,
             background:
-              "radial-gradient(circle, rgba(99,102,241,0.09) 0%, rgba(99,102,241,0.03) 50%, transparent 70%)",
+              "radial-gradient(circle, rgba(99,102,241,0.13) 0%, rgba(99,102,241,0.04) 50%, transparent 70%)",
             filter: "blur(60px)",
             animation: "orb-drift-a 22s ease-in-out infinite, orb-pulse 8s ease-in-out infinite",
           }}
@@ -64,7 +64,7 @@ export default function AppLayout({
             width: 520,
             height: 520,
             background:
-              "radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(139,92,246,0.11) 0%, transparent 70%)",
             filter: "blur(80px)",
             animation: "orb-drift-b 28s ease-in-out infinite, orb-pulse 11s ease-in-out infinite 3s",
           }}
@@ -77,7 +77,7 @@ export default function AppLayout({
             width: 300,
             height: 300,
             background:
-              "radial-gradient(circle, rgba(56,189,248,0.04) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(56,189,248,0.07) 0%, transparent 70%)",
             filter: "blur(50px)",
             animation: "orb-drift-b 35s ease-in-out infinite 6s",
           }}
@@ -96,7 +96,7 @@ export default function AppLayout({
         ] as const).map((s, i) => (
           <div
             key={i}
-            className="absolute h-[2px] w-[2px] rounded-full bg-white/60"
+            className="absolute h-[2px] w-[2px] rounded-full dark:bg-white/60 bg-indigo-400/50"
             style={{
               top: s.top,
               left: s.left,

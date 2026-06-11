@@ -4,6 +4,7 @@ import { Bell, Menu } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { usePathname, useRouter } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export function TopbarActions({
   onMenuClick,
@@ -175,6 +176,9 @@ export function TopbarActions({
           </span>
         )}
       </button>
+
+      {/* Theme toggle */}
+      <ModeToggle />
 
       {/* User avatar + email */}
       {userEmail && (

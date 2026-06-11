@@ -192,8 +192,8 @@ export default function Login04() {
             </a>
           </p>
           <div className="mt-8 flex flex-col items-center space-y-2 sm:flex-row sm:space-x-4 sm:space-y-0">
-            <Button variant="outline" className="flex-1 items-center justify-center space-x-2 py-2" render={<a href="#" />} nativeButton={false}><GitHubIcon className="size-5" aria-hidden={true} /><span className="text-sm font-medium">Login with GitHub</span></Button>
-            <Button variant="outline" className="mt-2 flex-1 items-center justify-center space-x-2 py-2 sm:mt-0" render={<a href="#" />} nativeButton={false}><GoogleIcon className="size-4" aria-hidden={true} /><span className="text-sm font-medium">Login with Google</span></Button>
+            <Button variant="outline" className="flex-1 items-center justify-center space-x-2 py-2"><GitHubIcon className="size-5" aria-hidden={true} /><span className="text-sm font-medium">Login with GitHub</span></Button>
+            <Button variant="outline" className="mt-2 flex-1 items-center justify-center space-x-2 py-2 sm:mt-0"><GoogleIcon className="size-4" aria-hidden={true} /><span className="text-sm font-medium">Login with Google</span></Button>
           </div>
 
           <div className="relative my-6">

@@ -170,7 +170,7 @@ export function NetworkBg() {
       el.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // Scale density with viewport area (~1 node per 16 000 px²), clamped [18, 80]
-      nodeCount   = Math.round(Math.min(Math.max((w * h) / 16_000, 18), 80));
+      nodeCount   = Math.round(Math.min(Math.max((w * h) / 16_000, 18), 72));
       // Connection distance: 13% of width, clamped [95, 180]
       connectDist = Math.round(Math.min(Math.max(w * 0.13, 95), 180));
       // Packets proportional to node count

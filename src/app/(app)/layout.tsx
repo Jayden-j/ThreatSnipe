@@ -108,7 +108,7 @@ export default function AppLayout({
       </div>
 
       {/* Main content area */}
-      <div className="relative min-h-screen">
+      <div className="relative z-[1] min-h-screen">
         {/* Floating pill navbar */}
         <NavBar items={navItems} />
 

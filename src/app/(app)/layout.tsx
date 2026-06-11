@@ -7,6 +7,7 @@ import { NavBar } from "@/components/ui/tubelight-navbar";
 import { AlertBell } from "@/components/alert-bell";
 import { AccountDropdown } from "@/components/account-dropdown";
 import { ModeToggle } from "@/components/mode-toggle";
+import { NetworkBg } from "@/components/app/network-bg";
 
 const navItems = [
   { name: "Snipe",     url: "/snipe",      icon: Crosshair       },
@@ -33,6 +34,9 @@ export default function AppLayout({
         }}
         aria-hidden="true"
       />
+
+      {/* Network topology threat map */}
+      {pathname !== "/settings" && <NetworkBg />}
 
       {/* Animated ambient orbs */}
       <div

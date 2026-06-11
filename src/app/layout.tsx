@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${antic.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${antic.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />

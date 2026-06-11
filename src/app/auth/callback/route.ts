@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login`);
   }
 
-  const redirectTo = `${origin}/dashboard`;
+  const next = searchParams.get("next") ?? "/dashboard";
+  const redirectTo = `${origin}${next}`;
   const supabaseResponse = NextResponse.redirect(redirectTo);
 
   const supabase = createServerClient(

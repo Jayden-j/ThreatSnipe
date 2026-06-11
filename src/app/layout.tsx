@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Antic } from "next/font/google";
 import { JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const antic = Antic({
@@ -28,7 +29,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${antic.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
+      className={`${antic.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -39,7 +41,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full bg-background text-foreground">
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

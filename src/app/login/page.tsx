@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { AlertCircle, ArrowRight, Shield, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, ArrowRight, Eye, EyeOff, Zap, BarChart3, BellRing, Shield, Search, Bell, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -29,6 +29,12 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path d="M3.06364 7.50914C4.70909 4.24092 8.09084 2 12 2C14.6954 2 16.959 2.99095 18.6909 4.60455L15.8227 7.47274C14.7864 6.48185 13.4681 5.97727 12 5.97727C9.39542 5.97727 7.19084 7.73637 6.40455 10.1C6.2045 10.7 6.09086 11.3409 6.09086 12C6.09086 12.6591 6.2045 13.3 6.40455 13.9C7.19084 16.2636 9.39542 18.0227 12 18.0227C13.3454 18.0227 14.4909 17.6682 15.3864 17.0682C16.4454 16.3591 17.15 15.3 17.3818 14.05H12V10.1818H21.4181C21.5364 10.8363 21.6 11.5182 21.6 12.2273C21.6 15.2727 20.5091 17.8363 18.6181 19.5773C16.9636 21.1046 14.7 22 12 22C8.09084 22 4.70909 19.7591 3.06364 16.4909C2.38638 15.1409 2 13.6136 2 12C2 10.3864 2.38638 8.85911 3.06364 7.50914Z" />
   </svg>
 );
+
+const FEATURES = [
+  { icon: Zap,      label: "Instant threat scoring across AbuseIPDB, VirusTotal & 20+ DNSBL providers" },
+  { icon: BellRing, label: "Real-time alerts the moment an asset hits a blacklist" },
+  { icon: BarChart3,label: "Historical analytics, trend reports, and one-click CSV export" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -55,26 +61,12 @@ export default function LoginPage() {
     }
   };
 
-  const handleGitHubLogin = async () => {
+  const handleOAuth = async (provider: "github" | "google") => {
     setError(null);
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
-      });
-      if (error) throw error;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    setError(null);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
+        provider,
         options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) throw error;
@@ -85,17 +77,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex" style={{ background: "oklch(0.08 0.013 270)" }}>
-      {/* Left panel — brand */}
+
+      {/* ── Left brand panel ── */}
       <div className="hidden lg:flex lg:w-[52%] relative flex-col justify-between p-12 overflow-hidden">
-        {/* Orb background */}
+
+        {/* Ambient orbs */}
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
           <motion.div
             className="absolute rounded-full"
             style={{
-              top: "-15%",
-              right: "-10%",
-              width: 600,
-              height: 600,
+              top: "-15%", right: "-10%", width: 600, height: 600,
               background: "radial-gradient(circle, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.07) 50%, transparent 75%)",
               filter: "blur(60px)",
             }}
@@ -105,10 +96,7 @@ export default function LoginPage() {
           <motion.div
             className="absolute rounded-full"
             style={{
-              bottom: "0%",
-              left: "-12%",
-              width: 550,
-              height: 550,
+              bottom: "0%", left: "-12%", width: 550, height: 550,
               background: "radial-gradient(circle, rgba(139,92,246,0.18) 0%, rgba(139,92,246,0.05) 50%, transparent 75%)",
               filter: "blur(80px)",
             }}
@@ -123,89 +111,73 @@ export default function LoginPage() {
           style={{
             backgroundImage: "radial-gradient(circle, rgba(99,102,241,0.2) 1px, transparent 1px)",
             backgroundSize: "28px 28px",
-            opacity: 0.3,
+            opacity: 0.25,
             maskImage: "radial-gradient(ellipse 80% 70% at 50% 40%, black 40%, transparent 100%)",
             WebkitMaskImage: "radial-gradient(ellipse 80% 70% at 50% 40%, black 40%, transparent 100%)",
           }}
           aria-hidden="true"
         />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/ThreatSnipe%20logo.svg" alt="" width={28} height={28} aria-hidden="true" />
-            <span className="text-sm font-semibold tracking-wide" style={{ color: "oklch(0.97 0 0)" }}>
-              ThreatSnipe
-            </span>
-          </div>
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/ThreatSnipe%20logo.svg" alt="" width={28} height={28} aria-hidden="true" />
+          <span className="text-sm font-semibold tracking-wide" style={{ color: "oklch(0.97 0 0)" }}>
+            ThreatSnipe
+          </span>
         </div>
 
-        <div className="relative z-10">
-          <motion.p
-            {...fadeUp(0.1)}
-            className="text-xs font-medium uppercase tracking-widest mb-4"
-            style={{ color: "rgba(165,180,252,0.6)" }}
+        {/* Dashboard preview card — replace src with /dashboard-preview.png */}
+        <motion.div
+          {...fadeUp(0.15)}
+          className="relative z-10 my-auto"
+          style={{ marginTop: "2rem", marginBottom: "2rem" }}
+        >
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{
+              border: "1px solid rgba(99,102,241,0.2)",
+              background: "oklch(0.10 0.012 270)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.1)",
+            }}
           >
+            <DashboardMockup />
+          </div>
+        </motion.div>
+
+        {/* Hero copy */}
+        <div className="relative z-10">
+          <motion.p {...fadeUp(0.1)} className="text-xs font-medium uppercase tracking-widest mb-4" style={{ color: "rgba(165,180,252,0.6)" }}>
             Threat Intelligence Platform
           </motion.p>
-          <motion.h2
-            {...fadeUp(0.2)}
-            className="font-display text-5xl xl:text-6xl leading-[1.05] tracking-tight"
-            style={{ color: "oklch(0.97 0 0)" }}
-          >
+          <motion.h2 {...fadeUp(0.2)} className="font-display text-4xl xl:text-5xl leading-[1.08] tracking-tight" style={{ color: "oklch(0.97 0 0)" }}>
             Know every threat,
             <br />
-            <span className="italic" style={{ color: "#a5b4fc" }}>
-              before it strikes.
-            </span>
+            <span className="italic" style={{ color: "#a5b4fc" }}>before it strikes.</span>
           </motion.h2>
-          <motion.p
-            {...fadeUp(0.3)}
-            className="mt-5 text-sm leading-relaxed max-w-sm"
-            style={{ color: "rgba(148,163,184,0.85)", fontFamily: "var(--font-body)" }}
-          >
-            Real-time intelligence from AbuseIPDB, VirusTotal, and 20+ DNSBL providers — across every IP, domain, and CIDR range you own.
-          </motion.p>
 
-          <motion.div
-            {...fadeUp(0.4)}
-            className="mt-8 flex flex-col gap-3"
-          >
-            {[
-              { label: "Automated threat scoring across all assets" },
-              { label: "Instant alerts on blacklist detections" },
-              { label: "Historical scan analytics and export" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-2.5">
+          <motion.div {...fadeUp(0.3)} className="mt-6 flex flex-col gap-3">
+            {FEATURES.map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-start gap-2.5">
                 <div
-                  className="h-5 w-5 rounded-full flex items-center justify-center shrink-0"
+                  className="mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}
                 >
-                  <Shield className="h-2.5 w-2.5" style={{ color: "#818cf8" }} />
+                  <Icon className="h-2.5 w-2.5" style={{ color: "#818cf8" }} />
                 </div>
-                <span className="text-xs" style={{ color: "rgba(148,163,184,0.75)" }}>
-                  {item.label}
-                </span>
+                <span className="text-xs leading-snug" style={{ color: "rgba(148,163,184,0.75)" }}>{label}</span>
               </div>
             ))}
           </motion.div>
         </div>
 
-        <motion.div
-          {...fadeUp(0.5)}
-          className="relative z-10 flex items-center gap-2 text-xs"
-          style={{ color: "rgba(100,116,139,0.6)" }}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full shrink-0"
-            style={{ background: "#22c55e", boxShadow: "0 0 5px #22c55e" }}
-            aria-hidden="true"
-          />
+        <motion.div {...fadeUp(0.4)} className="relative z-10 flex items-center gap-2 text-xs" style={{ color: "rgba(100,116,139,0.6)" }}>
+          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "#22c55e", boxShadow: "0 0 5px #22c55e" }} aria-hidden="true" />
           All systems operational
         </motion.div>
       </div>
 
-      {/* Right panel — form */}
+      {/* ── Right form panel ── */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 relative">
         <div
           className="hidden lg:block absolute inset-y-0 left-0 w-px"
@@ -218,21 +190,15 @@ export default function LoginPage() {
           <motion.div {...fadeUp(0)} className="flex items-center gap-2 mb-8 lg:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/ThreatSnipe%20logo.svg" alt="" width={26} height={26} aria-hidden="true" />
-            <span className="text-sm font-semibold" style={{ color: "oklch(0.97 0 0)" }}>
-              ThreatSnipe
-            </span>
+            <span className="text-sm font-semibold" style={{ color: "oklch(0.97 0 0)" }}>ThreatSnipe</span>
           </motion.div>
 
           <motion.div {...fadeUp(0.05)}>
-            <h1
-              className="font-display text-3xl leading-tight"
-              style={{ color: "oklch(0.97 0 0)" }}
-            >
-              Sign in to your{" "}
-              <span className="italic" style={{ color: "#a5b4fc" }}>account</span>
+            <h1 className="font-display text-3xl leading-tight" style={{ color: "oklch(0.97 0 0)" }}>
+              Welcome back
             </h1>
-            <p className="mt-2 text-sm" style={{ color: "rgba(148,163,184,0.7)", fontFamily: "var(--font-body)" }}>
-              Don&apos;t have an account?{" "}
+            <p className="mt-1.5 text-sm" style={{ color: "rgba(148,163,184,0.7)", fontFamily: "var(--font-body)" }}>
+              No account?{" "}
               <Link
                 href="/register"
                 className="font-medium transition-colors"
@@ -240,7 +206,7 @@ export default function LoginPage() {
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#a5b4fc")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "#818cf8")}
               >
-                Register free
+                Sign up free →
               </Link>
             </p>
           </motion.div>
@@ -254,80 +220,45 @@ export default function LoginPage() {
             </motion.div>
           )}
 
-          {/* OAuth buttons */}
+          {/* OAuth */}
           <motion.div {...fadeUp(0.15)} className="mt-7 grid grid-cols-2 gap-3">
-            <button
-              onClick={handleGitHubLogin}
-              className="flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200"
-              style={{
-                background: "oklch(0.11 0.010 270)",
-                border: "1px solid oklch(0.18 0.006 270)",
-                color: "oklch(0.97 0 0)",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.15 0.008 270)";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(99,102,241,0.4)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.11 0.010 270)";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.18 0.006 270)";
-              }}
-            >
-              <GitHubIcon className="h-4 w-4" aria-hidden="true" />
-              GitHub
-            </button>
-            <button
-              onClick={handleGoogleLogin}
-              className="flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200"
-              style={{
-                background: "oklch(0.11 0.010 270)",
-                border: "1px solid oklch(0.18 0.006 270)",
-                color: "oklch(0.97 0 0)",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.15 0.008 270)";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(99,102,241,0.4)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.11 0.010 270)";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.18 0.006 270)";
-              }}
-            >
-              <GoogleIcon className="h-4 w-4" aria-hidden="true" />
-              Google
-            </button>
+            {(["github", "google"] as const).map((provider) => (
+              <button
+                key={provider}
+                onClick={() => handleOAuth(provider)}
+                className="flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200"
+                style={{ background: "oklch(0.11 0.010 270)", border: "1px solid oklch(0.18 0.006 270)", color: "oklch(0.97 0 0)" }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.15 0.008 270)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(99,102,241,0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.11 0.010 270)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.18 0.006 270)";
+                }}
+              >
+                {provider === "github" ? <GitHubIcon className="h-4 w-4" aria-hidden="true" /> : <GoogleIcon className="h-4 w-4" aria-hidden="true" />}
+                {provider === "github" ? "GitHub" : "Google"}
+              </button>
+            ))}
           </motion.div>
 
           {/* Divider */}
           <motion.div {...fadeUp(0.2)} className="relative my-6">
-            <div
-              className="absolute inset-0 flex items-center"
-              aria-hidden="true"
-            >
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
               <div className="w-full" style={{ borderTop: "1px solid oklch(0.18 0.006 270)" }} />
             </div>
             <div className="relative flex justify-center">
-              <span
-                className="px-3 text-xs uppercase tracking-widest"
-                style={{ background: "oklch(0.08 0.013 270)", color: "rgba(100,116,139,0.6)" }}
-              >
-                or
+              <span className="px-3 text-xs uppercase tracking-widest" style={{ background: "oklch(0.08 0.013 270)", color: "rgba(100,116,139,0.6)" }}>
+                or continue with email
               </span>
             </div>
           </motion.div>
 
           {/* Email form */}
-          <motion.form
-            {...fadeUp(0.25)}
-            onSubmit={handleEmailLogin}
-            className="space-y-4"
-          >
+          <motion.form {...fadeUp(0.25)} onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label
-                htmlFor="login-email"
-                className="text-xs font-medium uppercase tracking-widest"
-                style={{ color: "rgba(148,163,184,0.6)" }}
-              >
+              <label htmlFor="login-email" className="text-xs font-medium uppercase tracking-widest" style={{ color: "rgba(148,163,184,0.6)" }}>
                 Email
               </label>
               <Input
@@ -339,22 +270,25 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 className="h-11 text-sm"
-                style={{
-                  background: "oklch(0.11 0.010 270)",
-                  borderColor: "oklch(0.18 0.006 270)",
-                  color: "oklch(0.97 0 0)",
-                }}
+                style={{ background: "oklch(0.11 0.010 270)", borderColor: "oklch(0.18 0.006 270)", color: "oklch(0.97 0 0)" }}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label
-                htmlFor="login-password"
-                className="text-xs font-medium uppercase tracking-widest"
-                style={{ color: "rgba(148,163,184,0.6)" }}
-              >
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="login-password" className="text-xs font-medium uppercase tracking-widest" style={{ color: "rgba(148,163,184,0.6)" }}>
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs transition-colors"
+                  style={{ color: "rgba(100,116,139,0.7)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#818cf8")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(100,116,139,0.7)")}
+                >
+                  Forgot?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="login-password"
@@ -365,11 +299,7 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   required
                   className="h-11 text-sm pr-10"
-                  style={{
-                    background: "oklch(0.11 0.010 270)",
-                    borderColor: "oklch(0.18 0.006 270)",
-                    color: "oklch(0.97 0 0)",
-                  }}
+                  style={{ background: "oklch(0.11 0.010 270)", borderColor: "oklch(0.18 0.006 270)", color: "oklch(0.97 0 0)" }}
                 />
                 <button
                   type="button"
@@ -385,31 +315,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-xs transition-colors"
-                style={{ color: "rgba(100,116,139,0.7)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#818cf8")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(100,116,139,0.7)")}
-              >
-                Forgot password?
-              </Link>
-            </div>
-
             <Button
               type="submit"
               disabled={loading}
               className="w-full h-11 text-sm font-semibold gap-2 group transition-all duration-200 hover:shadow-[0_0_28px_rgba(99,102,241,0.5)] hover:brightness-110"
-              style={{
-                background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)",
-                color: "white",
-                border: "none",
-              }}
+              style={{ background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)", color: "white", border: "none" }}
             >
-              {loading ? (
-                "Signing in…"
-              ) : (
+              {loading ? "Signing in…" : (
                 <>
                   Sign In
                   <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -418,20 +330,129 @@ export default function LoginPage() {
             </Button>
           </motion.form>
 
-          <motion.p
-            {...fadeUp(0.35)}
-            className="mt-8 text-center text-xs"
-            style={{ color: "rgba(100,116,139,0.5)" }}
-          >
+          <motion.p {...fadeUp(0.35)} className="mt-8 text-center text-xs" style={{ color: "rgba(100,116,139,0.5)" }}>
             By signing in you agree to our{" "}
-            <Link href="#" className="underline underline-offset-2 hover:text-slate-400 transition-colors">
-              Terms
-            </Link>{" "}
-            and{" "}
-            <Link href="#" className="underline underline-offset-2 hover:text-slate-400 transition-colors">
-              Privacy Policy
-            </Link>
+            <Link href="#" className="underline underline-offset-2 hover:text-slate-400 transition-colors">Terms</Link>
+            {" "}and{" "}
+            <Link href="#" className="underline underline-offset-2 hover:text-slate-400 transition-colors">Privacy Policy</Link>
           </motion.p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardMockup() {
+  const C = {
+    bg: "#0f0f1a",
+    surface: "#141421",
+    border: "rgba(255,255,255,0.06)",
+    text: "#f1f5f9",
+    muted: "#64748b",
+    accent: "rgba(99,102,241,0.15)",
+    accentBorder: "rgba(99,102,241,0.3)",
+    red: "#f87171", redBg: "rgba(239,68,68,0.1)", redBorder: "rgba(239,68,68,0.35)",
+    green: "#4ade80", greenBg: "rgba(34,197,94,0.1)", greenBorder: "rgba(34,197,94,0.35)",
+    amber: "#fbbf24",
+  };
+
+  const sparkPoints = [4, 9, 6, 14, 11, 18, 13];
+  const spMax = Math.max(...sparkPoints);
+  const spW = 200, spH = 32;
+  const toX = (i: number) => (i / (sparkPoints.length - 1)) * spW;
+  const toY = (v: number) => spH - (v / spMax) * (spH - 4) - 2;
+  const linePath = sparkPoints.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L${spW},${spH} L0,${spH} Z`;
+
+  return (
+    <div className="select-none pointer-events-none text-[10px]" style={{ background: C.bg }}>
+      {/* Pill navbar */}
+      <div className="relative flex items-center justify-center px-3 py-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div className="flex items-center gap-0.5 rounded-full px-1 py-0.5" style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}` }}>
+          {[{ l: "Snipe", a: false }, { l: "Dashboard", a: true }, { l: "Assets", a: false }].map(({ l, a }) => (
+            <span key={l} className="px-2.5 py-0.5 rounded-full text-[9px] font-medium" style={a ? { background: "rgba(99,102,241,0.2)", color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.3)" } : { color: C.muted }}>{l}</span>
+          ))}
+        </div>
+        <div className="absolute right-3 flex items-center gap-1.5">
+          <Bell className="h-3 w-3" style={{ color: C.muted }} />
+          <div className="h-4 w-4 rounded-full flex items-center justify-center text-[7px] font-bold" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)" }}>JJ</div>
+        </div>
+      </div>
+
+      <div className="p-2.5 flex flex-col gap-2">
+        {/* Heading */}
+        <div>
+          <p className="font-bold text-[11px]" style={{ color: C.text }}>Security Overview</p>
+          <p className="text-[8px] mt-0.5" style={{ color: C.muted }}>Real-time threat intelligence</p>
+        </div>
+
+        {/* Quick scan */}
+        <div className="flex gap-1">
+          <div className="flex-1 flex items-center gap-1.5 rounded-md px-2 py-1" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <Search className="h-2.5 w-2.5 shrink-0" style={{ color: C.muted }} />
+            <span className="text-[8px]" style={{ color: "rgba(100,116,139,0.45)" }}>Quick scan — enter an IP or domain…</span>
+          </div>
+          <div className="rounded-md px-2 py-1 text-[8px] font-medium flex items-center" style={{ background: "rgba(99,102,241,0.85)", color: "white" }}>Scan</div>
+        </div>
+
+        {/* KPI row */}
+        <div className="grid grid-cols-6 gap-1">
+          {[
+            { l: "Scans",   v: "247", c: "#818cf8", ib: C.accent,   ibr: C.accentBorder },
+            { l: "Assets",  v: "12",  c: "#818cf8", ib: C.accent,   ibr: C.accentBorder },
+            { l: "Ports",   v: "31",  c: "#818cf8", ib: C.accent,   ibr: C.accentBorder },
+            { l: "Threats", v: "3",   c: C.red,     ib: C.redBg,    ibr: C.redBorder,   t: "↑+1" },
+            { l: "Clean",   v: "211", c: C.green,   ib: C.greenBg,  ibr: C.greenBorder },
+            { l: "Alerts",  v: "2",   c: C.red,     ib: C.redBg,    ibr: C.redBorder },
+          ].map((k) => (
+            <div key={k.l} className="rounded-md p-1.5 flex flex-col gap-0.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="h-4 w-4 rounded flex items-center justify-center" style={{ background: k.ib, border: `1px solid ${k.ibr}` }}>
+                <Shield className="h-2 w-2" style={{ color: k.c }} />
+              </div>
+              <p className="font-bold text-[10px] leading-none mt-0.5" style={{ color: k.c }}>{k.v}</p>
+              {k.t && <p className="text-[7px] leading-none" style={{ color: C.amber }}>{k.t}</p>}
+              <p className="text-[7px] leading-none" style={{ color: C.muted }}>{k.l}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Chart + recent scans side by side */}
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          {/* Sparkline */}
+          <div className="rounded-md p-2" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <p className="text-[8px] font-semibold mb-1.5" style={{ color: C.text }}>Scans / 7d</p>
+            <svg width="100%" height={spH} viewBox={`0 0 ${spW} ${spH}`} preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="dg2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity="0.01" />
+                </linearGradient>
+              </defs>
+              <path d={areaPath} fill="url(#dg2)" />
+              <path d={linePath} fill="none" stroke="#818cf8" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+            <div className="flex justify-between mt-0.5 text-[6px]" style={{ color: C.muted }}>
+              {["Jun 5", "", "", "", "", "", "Jun 11"].map((d, i) => <span key={i}>{d}</span>)}
+            </div>
+          </div>
+
+          {/* Recent scans */}
+          <div className="rounded-md overflow-hidden" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <p className="text-[8px] font-semibold px-2 py-1.5" style={{ color: C.text, borderBottom: `1px solid ${C.border}` }}>Recent Scans</p>
+            {[
+              { t: "185.220.101.45",  v: "THREAT",     vc: C.red,   vbg: C.redBg,   icon: "ip" },
+              { t: "example-corp.com",v: "CLEAN",      vc: C.green, vbg: C.greenBg, icon: "domain" },
+              { t: "45.142.212.100",  v: "SUSPICIOUS", vc: C.amber, vbg: "rgba(245,158,11,0.1)", icon: "ip" },
+            ].map((row, i, arr) => (
+              <div key={i} className="flex items-center gap-1.5 px-2 py-1" style={{ borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                <div className="h-3.5 w-3.5 rounded flex items-center justify-center shrink-0" style={{ background: C.accent, border: `1px solid ${C.accentBorder}` }}>
+                  {row.icon === "domain" ? <Globe className="h-2 w-2" style={{ color: "#818cf8" }} /> : <Shield className="h-2 w-2" style={{ color: "#818cf8" }} />}
+                </div>
+                <span className="flex-1 font-mono text-[7px] truncate" style={{ color: C.text }}>{row.t}</span>
+                <span className="text-[7px] font-medium px-1 py-0.5 rounded-full" style={{ color: row.vc, background: row.vbg }}>{row.v}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

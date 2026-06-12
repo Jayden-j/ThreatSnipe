@@ -6,10 +6,10 @@ import {
   ChevronDown,
   Bell,
   Search,
-  Plus,
   ChevronRight,
   ArrowRight,
   Shield,
+  Globe,
 } from "lucide-react";
 
 function fadeUp(delay = 0) {
@@ -250,235 +250,259 @@ function DashboardPreview() {
     border: "rgba(255,255,255,0.06)",
     text: "#f1f5f9",
     muted: "#64748b",
-    accentDim: "rgba(99,102,241,0.15)",
-    red: "#ef4444",
-    green: "#22c55e",
-    amber: "#f59e0b",
+    accent: "rgba(99,102,241,0.15)",
+    accentBorder: "rgba(99,102,241,0.3)",
+    red: "#f87171",
+    redBg: "rgba(239,68,68,0.1)",
+    redBorder: "rgba(239,68,68,0.35)",
+    green: "#4ade80",
+    greenBg: "rgba(34,197,94,0.1)",
+    greenBorder: "rgba(34,197,94,0.35)",
+    amber: "#fbbf24",
+    amberBg: "rgba(245,158,11,0.1)",
+    amberBorder: "rgba(245,158,11,0.35)",
   };
+
+  // Sparkline data points (7-day scan counts)
+  const sparkPoints = [4, 9, 6, 14, 11, 18, 13];
+  const spMax = Math.max(...sparkPoints);
+  const spW = 160, spH = 36;
+  const toX = (i: number) => (i / (sparkPoints.length - 1)) * spW;
+  const toY = (v: number) => spH - (v / spMax) * (spH - 4) - 2;
+  const linePath = sparkPoints.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L${spW},${spH} L0,${spH} Z`;
+
+  // Donut arc helper
+  function donutArc(startDeg: number, endDeg: number, r = 22, cx = 28, cy = 28) {
+    const toRad = (d: number) => ((d - 90) * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(toRad(startDeg));
+    const y1 = cy + r * Math.sin(toRad(startDeg));
+    const x2 = cx + r * Math.cos(toRad(endDeg));
+    const y2 = cy + r * Math.sin(toRad(endDeg));
+    const large = endDeg - startDeg > 180 ? 1 : 0;
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  }
+  // clean=211, suspicious=18, threat=3 → total=232
+  const total = 232, clean = 211, suspicious = 18, threat = 3;
+  const cleanDeg = (clean / total) * 360;
+  const suspDeg = (suspicious / total) * 360;
 
   return (
     <div
-      className="flex text-[11px] select-none pointer-events-none"
-      style={{ minHeight: 360, background: C.bg }}
+      className="flex flex-col text-[11px] select-none pointer-events-none"
+      style={{ background: C.bg }}
     >
-      {/* Sidebar */}
-      <aside
-        className="w-44 shrink-0 flex flex-col gap-0.5 px-2 py-3"
-        style={{ borderRight: `1px solid ${C.border}` }}
-      >
-        <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
-          <div
-            className="h-5 w-5 rounded flex items-center justify-center"
-            style={{ background: C.accentDim, border: "1px solid rgba(99,102,241,0.3)" }}
-          >
-            <Shield className="h-3 w-3" style={{ color: "#818cf8" }} />
-          </div>
-          <span className="font-semibold text-[11px]" style={{ color: C.text }}>
-            ThreatSnipe
-          </span>
-          <ChevronDown className="h-3 w-3 ml-auto" style={{ color: C.muted }} />
-        </div>
-
-        <NavItem label="Dashboard" active color={C} />
-        <NavItem label="Assets" badge="24" color={C} />
-        <NavItem label="Alerts" badge="3" badgeRed color={C} />
-        <NavItem label="Scan History" color={C} />
-        <NavItem label="Lookups" hasChevron color={C} />
-        <NavItem label="Blacklists" color={C} />
-
+      {/* ── Pill navbar ── */}
+      <div className="relative flex items-center justify-center px-4 py-2.5" style={{ borderBottom: `1px solid ${C.border}` }}>
         <div
-          className="mt-3 mb-1 px-2 text-[9px] uppercase tracking-widest font-medium"
-          style={{ color: "rgba(100,116,139,0.6)" }}
+          className="flex items-center gap-0.5 rounded-full px-1.5 py-1"
+          style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}` }}
         >
-          Monitors
-        </div>
-        <NavItem label="IP Watch" color={C} />
-        <NavItem label="Domain Watch" color={C} />
-        <NavItem label="CIDR Ranges" color={C} />
-      </aside>
-
-      {/* Main */}
-      <main
-        className="flex-1 p-3 flex flex-col gap-2.5 overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.018)" }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-semibold text-[12px]" style={{ color: C.text }}>
-              Welcome back, Jayden
-            </p>
-            <p className="text-[9px] mt-0.5" style={{ color: C.muted }}>
-              Last scan: 2 minutes ago · 0 active threats
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px]"
-              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted }}
-            >
-              <Search className="h-3 w-3" />
-              <span>Search...</span>
-              <span
-                className="ml-1 text-[9px] rounded px-1 border"
-                style={{ borderColor: C.border, color: C.muted }}
-              >
-                ⌘K
-              </span>
-            </div>
-            <div
-              className="rounded-full px-2.5 py-1 text-[10px] font-medium"
-              style={{
-                background: C.accentDim,
-                color: "#a5b4fc",
-                border: "1px solid rgba(99,102,241,0.3)",
-              }}
-            >
-              New Scan
-            </div>
-            <Bell className="h-3.5 w-3.5" style={{ color: C.muted }} />
-            <div
-              className="h-6 w-6 rounded-full flex items-center justify-center font-semibold text-[9px]"
-              style={{
-                background: "rgba(99,102,241,0.2)",
-                color: "#818cf8",
-                border: "1px solid rgba(99,102,241,0.3)",
-              }}
-            >
-              JJ
-            </div>
-          </div>
-        </div>
-
-        {/* Stat cards */}
-        <div className="flex gap-2">
           {[
-            { label: "Threat Score", value: "74", sub: "/ 100", badge: "Last 30d", delta: "+2 this week", deltaColor: C.green },
-            { label: "Assets", value: "194", sub: "monitored", badge: "↑ 12 this week", delta: "142 IPs · 38 Domains", deltaColor: C.muted },
-            { label: "Alerts", value: "3", sub: "active", badge: "High priority", delta: "Last: 4h ago", deltaColor: C.amber },
-          ].map((card) => (
-            <div
-              key={card.label}
-              className="flex-1 rounded-xl p-2.5 flex flex-col gap-1"
-              style={{ background: C.surface, border: `1px solid ${C.border}` }}
+            { label: "Snipe", active: false },
+            { label: "Dashboard", active: true },
+            { label: "Assets", active: false },
+          ].map(({ label, active }) => (
+            <span
+              key={label}
+              className="px-3 py-1 rounded-full text-[10px] font-medium"
+              style={active ? { background: "rgba(99,102,241,0.2)", color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.3)" }
+                           : { color: C.muted }}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-[10px]" style={{ color: C.text }}>
-                  {card.label}
-                </span>
-                <span
-                  className="text-[8px] px-1.5 py-0.5 rounded-full"
-                  style={{ background: "rgba(255,255,255,0.05)", color: C.muted }}
-                >
-                  {card.badge}
-                </span>
+              {label}
+            </span>
+          ))}
+        </div>
+        {/* Right controls */}
+        <div className="absolute right-4 flex items-center gap-2">
+          <Bell className="h-3.5 w-3.5" style={{ color: C.muted }} />
+          <div className="h-4 w-4 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)", border: `1px solid ${C.border}` }}>
+            <div className="h-2 w-2 rounded-full" style={{ background: C.muted }} />
+          </div>
+          <div className="h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-bold" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)" }}>
+            JJ
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main content ── */}
+      <div className="p-3 flex flex-col gap-2.5">
+
+        {/* Header */}
+        <div>
+          <p className="font-bold text-[13px] leading-none" style={{ color: C.text }}>Security Overview</p>
+          <p className="text-[9px] mt-1" style={{ color: C.muted }}>Real-time threat intelligence across your infrastructure</p>
+        </div>
+
+        {/* Quick scan bar */}
+        <div className="flex gap-1.5">
+          <div className="flex-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+            <Search className="h-3 w-3 shrink-0" style={{ color: C.muted }} />
+            <span className="text-[9px]" style={{ color: "rgba(100,116,139,0.5)" }}>Quick scan — enter an IP or domain and press Enter…</span>
+          </div>
+          <div className="rounded-lg px-3 py-1.5 text-[10px] font-medium" style={{ background: "rgba(99,102,241,0.9)", color: "white" }}>Scan</div>
+        </div>
+
+        {/* KPI cards — 6 across */}
+        <div className="grid grid-cols-6 gap-1.5">
+          {[
+            { label: "Total Scans", value: "247", color: "#818cf8", iconBg: "rgba(99,102,241,0.15)", iconBorder: "rgba(99,102,241,0.3)" },
+            { label: "Assets",      value: "12",  color: "#818cf8", iconBg: "rgba(99,102,241,0.15)", iconBorder: "rgba(99,102,241,0.3)" },
+            { label: "Ports",       value: "31",  color: "#818cf8", iconBg: "rgba(99,102,241,0.15)", iconBorder: "rgba(99,102,241,0.3)" },
+            { label: "Threats",     value: "3",   color: C.red,    iconBg: C.redBg, iconBorder: C.redBorder, trend: "↑ +1 this week" },
+            { label: "Clean",       value: "211", color: C.green,  iconBg: C.greenBg, iconBorder: C.greenBorder },
+            { label: "Alerts",      value: "2",   color: C.red,    iconBg: C.redBg, iconBorder: C.redBorder },
+          ].map((card) => (
+            <div key={card.label} className="rounded-lg p-2 flex items-center gap-1.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="h-6 w-6 rounded-md shrink-0 flex items-center justify-center" style={{ background: card.iconBg, border: `1px solid ${card.iconBorder}` }}>
+                <Shield className="h-3 w-3" style={{ color: card.color }} />
               </div>
-              <div className="flex items-end gap-1.5">
-                <span className="text-xl font-bold leading-none" style={{ color: C.text }}>
-                  {card.value}
-                </span>
-                <span className="text-[9px] mb-0.5" style={{ color: C.muted }}>
-                  {card.sub}
-                </span>
+              <div className="min-w-0">
+                <p className="font-bold leading-none text-[11px]" style={{ color: card.color }}>{card.value}</p>
+                {card.trend && <p className="text-[8px] leading-none mt-0.5" style={{ color: C.amber }}>{card.trend}</p>}
+                <p className="text-[8px] leading-none mt-0.5 truncate" style={{ color: C.muted }}>{card.label}</p>
               </div>
-              <span className="text-[9px]" style={{ color: card.deltaColor }}>
-                {card.delta}
-              </span>
             </div>
           ))}
         </div>
 
-        {/* Recent scans table */}
-        <div
-          className="rounded-xl overflow-hidden flex-1"
-          style={{ background: C.surface, border: `1px solid ${C.border}` }}
-        >
-          <div
-            className="px-3 py-2 font-semibold text-[11px] flex items-center justify-between"
-            style={{ borderBottom: `1px solid ${C.border}`, color: C.text }}
-          >
-            <span>Recent Scans</span>
-            <Plus className="h-3 w-3" style={{ color: C.muted }} />
-          </div>
-          <table className="w-full">
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                {["Date", "Target", "Type", "Status"].map((h) => (
-                  <th
-                    key={h}
-                    className={`py-1.5 px-3 font-medium text-[9px] ${h === "Status" ? "text-right" : "text-left"}`}
-                    style={{ color: C.muted }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { date: "Jun 2", target: "185.220.101.45", type: "IP Scan", status: "Malicious", color: C.red, bg: "rgba(239,68,68,0.1)" },
-                { date: "Jun 1", target: "example-domain.com", type: "Domain", status: "Clean", color: C.green, bg: "rgba(34,197,94,0.1)" },
-                { date: "Jun 1", target: "192.168.10.0/24", type: "CIDR", status: "Clean", color: C.green, bg: "rgba(34,197,94,0.1)" },
-                { date: "May 31", target: "45.142.212.100", type: "IP Scan", status: "Suspicious", color: C.amber, bg: "rgba(245,158,11,0.1)" },
-              ].map((row, i) => (
-                <tr key={i} style={{ borderBottom: i < 3 ? `1px solid ${C.border}` : "none" }}>
-                  <td className="px-3 py-2 text-[9px]" style={{ color: C.muted }}>{row.date}</td>
-                  <td className="px-3 py-2 text-[10px] font-mono" style={{ color: C.text }}>{row.target}</td>
-                  <td className="px-3 py-2 text-[9px]" style={{ color: C.muted }}>{row.type}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[9px] font-medium"
-                      style={{ background: row.bg, color: row.color }}
-                    >
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </main>
-    </div>
-  );
-}
+        {/* Main grid: 5+3 columns */}
+        <div className="grid gap-2" style={{ gridTemplateColumns: "5fr 3fr" }}>
 
-function NavItem({
-  label,
-  active,
-  badge,
-  badgeRed,
-  hasChevron,
-  color,
-}: {
-  label: string;
-  active?: boolean;
-  badge?: string;
-  badgeRed?: boolean;
-  hasChevron?: boolean;
-  color: Record<string, string>;
-}) {
-  return (
-    <div
-      className="flex items-center gap-1.5 px-2 py-1.5 rounded-md"
-      style={{
-        background: active ? "rgba(99,102,241,0.15)" : "transparent",
-        color: active ? "#a5b4fc" : color.muted,
-        border: active ? "1px solid rgba(99,102,241,0.2)" : "1px solid transparent",
-      }}
-    >
-      <span className="flex-1 text-[10px] font-medium">{label}</span>
-      {badge && (
-        <span
-          className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-          style={{
-            background: badgeRed ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.06)",
-            color: badgeRed ? "#f87171" : color.muted,
-          }}
-        >
-          {badge}
-        </span>
-      )}
-      {hasChevron && <ChevronRight className="h-2.5 w-2.5" />}
+          {/* Left col */}
+          <div className="flex flex-col gap-2">
+            {/* Scans over time */}
+            <div className="rounded-lg p-2.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-semibold" style={{ color: C.text }}>Scans Over Time</p>
+                <span className="text-[8px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", color: C.muted }}>Last 7 days</span>
+              </div>
+              {/* Y labels + chart */}
+              <div className="flex items-end gap-1">
+                <div className="flex flex-col justify-between text-[7px] pr-1 self-stretch" style={{ color: C.muted }}>
+                  <span>18</span>
+                  <span>9</span>
+                  <span>0</span>
+                </div>
+                <svg width="100%" height={spH} viewBox={`0 0 ${spW} ${spH}`} preserveAspectRatio="none" className="flex-1">
+                  <defs>
+                    <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#6366f1" stopOpacity="0.01" />
+                    </linearGradient>
+                  </defs>
+                  <path d={areaPath} fill="url(#sg)" />
+                  <path d={linePath} fill="none" stroke="#818cf8" strokeWidth="1.5" strokeLinejoin="round" />
+                  {sparkPoints.map((v, i) => (
+                    <circle key={i} cx={toX(i)} cy={toY(v)} r="2" fill="#818cf8" />
+                  ))}
+                </svg>
+              </div>
+              {/* X labels */}
+              <div className="flex justify-between mt-1 text-[7px]" style={{ color: C.muted }}>
+                {["Jun 5", "Jun 6", "Jun 7", "Jun 8", "Jun 9", "Jun 10", "Jun 11"].map((d) => <span key={d}>{d}</span>)}
+              </div>
+            </div>
+
+            {/* Recent scans */}
+            <div className="rounded-lg overflow-hidden" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+                <p className="text-[10px] font-semibold" style={{ color: C.text }}>Recent Scans</p>
+                <span className="text-[8px]" style={{ color: C.muted }}>View all →</span>
+              </div>
+              {[
+                { icon: "ip",     target: "185.220.101.45",  summary: "Score: 87/100",       verdict: "THREAT",     vc: C.red,   vbg: C.redBg,   vb: C.redBorder,   time: "2m" },
+                { icon: "domain", target: "example-corp.com",summary: "0 engines flagged",   verdict: "CLEAN",      vc: C.green, vbg: C.greenBg, vb: C.greenBorder, time: "1h" },
+                { icon: "port",   target: "10.0.0.1",        summary: "4 open ports",        verdict: "SUSPICIOUS", vc: C.amber, vbg: C.amberBg, vb: C.amberBorder, time: "3h" },
+                { icon: "ip",     target: "45.142.212.100",  summary: "Score: 14/100",       verdict: "CLEAN",      vc: C.green, vbg: C.greenBg, vb: C.greenBorder, time: "1d" },
+              ].map((row, i, arr) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                  <div className="h-5 w-5 rounded-md shrink-0 flex items-center justify-center" style={{ background: C.accent, border: `1px solid ${C.accentBorder}` }}>
+                    {row.icon === "domain" ? <Globe className="h-2.5 w-2.5" style={{ color: "#818cf8" }} />
+                      : row.icon === "port" ? <ChevronRight className="h-2.5 w-2.5" style={{ color: "#818cf8" }} />
+                      : <Shield className="h-2.5 w-2.5" style={{ color: "#818cf8" }} />}
+                  </div>
+                  <span className="flex-1 font-mono text-[9px] truncate" style={{ color: C.text }}>{row.target}</span>
+                  <span className="text-[8px] hidden sm:block truncate max-w-[80px]" style={{ color: C.muted }}>{row.summary}</span>
+                  <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full shrink-0" style={{ color: row.vc, background: row.vbg, border: `1px solid ${row.vb}` }}>{row.verdict}</span>
+                  <span className="text-[8px] w-6 text-right shrink-0" style={{ color: C.muted }}>{row.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right col */}
+          <div className="flex flex-col gap-2">
+            {/* Threat breakdown donut */}
+            <div className="rounded-lg p-2.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <p className="text-[10px] font-semibold mb-2" style={{ color: C.text }}>Threat Breakdown</p>
+              <div className="flex items-center gap-3">
+                <svg width="56" height="56" viewBox="0 0 56 56">
+                  {/* Clean arc */}
+                  <path d={donutArc(0, cleanDeg)} fill="none" stroke={C.green} strokeWidth="9" strokeLinecap="round" opacity="0.8" />
+                  {/* Suspicious arc */}
+                  <path d={donutArc(cleanDeg, cleanDeg + suspDeg)} fill="none" stroke={C.amber} strokeWidth="9" strokeLinecap="round" opacity="0.8" />
+                  {/* Threat arc */}
+                  <path d={donutArc(cleanDeg + suspDeg, 360)} fill="none" stroke={C.red} strokeWidth="9" strokeLinecap="round" opacity="0.8" />
+                  <text x="28" y="29.5" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 9, fill: C.text, fontWeight: 700 }}>91%</text>
+                  <text x="28" y="38" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 6, fill: C.muted }}>clean</text>
+                </svg>
+                <div className="flex flex-col gap-1 text-[9px]">
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: C.green }} /><span style={{ color: C.muted }}>Clean</span><span className="ml-auto font-medium" style={{ color: C.text }}>211</span></div>
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: C.amber }} /><span style={{ color: C.muted }}>Suspicious</span><span className="ml-auto font-medium" style={{ color: C.text }}>18</span></div>
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: C.red }} /><span style={{ color: C.muted }}>Threat</span><span className="ml-auto font-medium" style={{ color: C.text }}>3</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Alerts widget */}
+            <div className="rounded-lg overflow-hidden flex-1" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="px-3 py-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+                <p className="text-[10px] font-semibold" style={{ color: C.text }}>Open Alerts</p>
+              </div>
+              {[
+                { title: "Malicious IP detected", asset: "185.220.101.45", sev: "HIGH",   sc: C.red,   sb: C.redBg   },
+                { title: "Blacklist hit",          asset: "45.142.212.100", sev: "MEDIUM", sc: C.amber, sb: C.amberBg },
+              ].map((a, i, arr) => (
+                <div key={i} className="px-3 py-2" style={{ borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                  <div className="flex items-start justify-between gap-1">
+                    <p className="text-[9px] font-medium leading-snug" style={{ color: C.text }}>{a.title}</p>
+                    <span className="text-[7px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold" style={{ background: a.sb, color: a.sc }}>{a.sev}</span>
+                  </div>
+                  <p className="text-[8px] font-mono mt-0.5" style={{ color: C.muted }}>{a.asset}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Tool launcher */}
+        <div className="rounded-lg p-2.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+          <p className="text-[10px] font-semibold mb-2" style={{ color: C.text }}>Quick Launch</p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {[
+              { name: "Abuse Checker",  desc: "IP reputation" },
+              { name: "VirusTotal",     desc: "Malware scan" },
+              { name: "Port Scanner",   desc: "TCP recon" },
+              { name: "Blacklist",      desc: "40+ DNSBLs" },
+              { name: "DNS Records",    desc: "Full lookup" },
+              { name: "WHOIS",          desc: "Reg. data" },
+              { name: "SSL Checker",    desc: "Cert check" },
+              { name: "Email Security", desc: "SPF/DKIM" },
+              { name: "Server Status",  desc: "Health check" },
+              { name: "Bulk Check",     desc: "Batch 20+" },
+            ].map((tool) => (
+              <div key={tool.name} className="rounded-lg p-1.5 flex flex-col gap-1" style={{ border: `1px solid ${C.border}`, background: "rgba(255,255,255,0.02)" }}>
+                <div className="h-5 w-5 rounded-md flex items-center justify-center" style={{ background: C.accent, border: `1px solid ${C.accentBorder}` }}>
+                  <Shield className="h-2.5 w-2.5" style={{ color: "#818cf8" }} />
+                </div>
+                <p className="text-[8px] font-semibold leading-snug" style={{ color: C.text }}>{tool.name}</p>
+                <p className="text-[7px] leading-snug" style={{ color: C.muted }}>{tool.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

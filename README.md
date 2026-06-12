@@ -17,3 +17,20 @@
     </a>
   </p>
 </div>
+
+## Features
+
+| Tool | Description |
+|------|-------------|
+| 🛡️ **IP Intelligence** | Cross-reference any IP against AbuseIPDB's 60M+ abuse reports — confidence score, geolocation, ISP, usage type |
+| 🌐 **VirusTotal Check** | Scan domains and IPs through 70+ antivirus and threat intelligence engines |
+| 📋 **Blacklist Check** | Verify against 20+ DNSBL providers simultaneously — know within seconds if you're listed |
+| 🔬 **CIDR Range Scanning** | Scan entire subnets (/8–/32) and identify compromised hosts across a network range |
+| 🔌 **Port Scanner** | TCP port reconnaissance — discover open ports and running services on any host |
+| 🌍 **DNS Records** | Full DNS record lookup — A, AAAA, MX, TXT, CNAME, NS, and more |
+| 📄 **WHOIS Lookup** | Domain registration details, registrar data, and ownership records |
+| 🔒 **SSL Checker** | Certificate validation, chain analysis, and TLS configuration audit |
+| 📧 **Email Security** | SPF, DKIM, and DMARC record audit for email authentication hardening |
+| 📊 **Asset Monitoring** | Track IPs, domains, and CIDR ranges with historical threat data and trend charts |
+| 🔔 **Real-time Alerts** | Threshold-based notifications the moment a monitored asset hits a blacklist |
+| 📦 **Bulk Check** | Batch scan up to 20 targets simultaneously |

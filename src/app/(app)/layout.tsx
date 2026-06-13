@@ -114,8 +114,8 @@ export default function AppLayout({
 
         {/* Right-side controls */}
         <div className="fixed top-0 right-0 z-50 flex items-center gap-2 pt-[1.625rem] pr-6">
-          <AlertBell />
           <ModeToggle />
+          <AlertBell />
           <AccountDropdown />
         </div>
 

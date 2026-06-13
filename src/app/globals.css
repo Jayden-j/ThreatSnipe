@@ -202,7 +202,7 @@ html.theme-transitioning *,
 html.theme-transitioning *::before,
 html.theme-transitioning *::after {
   transition-property: background-color, background, border-color, color, fill, stroke, box-shadow !important;
-  transition-duration: 400ms !important;
+  transition-duration: 600ms !important;
   transition-timing-function: ease !important;
   transition-delay: 0ms !important;
 }

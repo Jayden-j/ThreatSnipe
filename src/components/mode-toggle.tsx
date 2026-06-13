@@ -62,7 +62,7 @@ export function ModeToggle() {
     setTheme(isDark ? "light" : "dark");
     setTimeout(() => {
       document.documentElement.classList.remove("theme-transitioning");
-    }, 500);
+    }, 700);
   };
 
   // Render a placeholder identical in size to avoid layout shift
@@ -145,7 +145,7 @@ export function ModeToggle() {
             : "0 1px 3px rgba(0,0,0,0.30), 0 0 0 0.5px rgba(0,0,0,0.04)",
           transform: `translateX(${isDark ? 26 : 3}px)`,
           transition:
-            "transform 340ms cubic-bezier(0.25, 1.25, 0.5, 1), background 400ms ease, box-shadow 400ms ease",
+            "transform 620ms cubic-bezier(0.25, 1.25, 0.5, 1), background 600ms ease, box-shadow 600ms ease",
         }}
       />
     </button>

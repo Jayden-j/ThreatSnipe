@@ -30,7 +30,7 @@ export default function BulkPage() {
             placeholder="Enter IPs or domains, one per line"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="border-border bg-secondary pl-10 text-foreground"
+            className="border-border dark:border-white/15 bg-secondary pl-10 text-foreground"
             disabled={loading}
           />
         </div>

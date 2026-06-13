@@ -296,7 +296,7 @@ function ServerStatusForm() {
             placeholder="example.com"
             value={hostInput}
             onChange={(e) => setHostInput(e.target.value)}
-            className="border-border bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+            className="border-border dark:border-white/15 bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
             disabled={loading}
           />
         </div>

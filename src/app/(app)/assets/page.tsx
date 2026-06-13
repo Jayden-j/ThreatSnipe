@@ -860,7 +860,7 @@ export default function AssetsPage() {
             placeholder="Search assets..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border-border bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+            className="border-border dark:border-white/15 bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
           />
         </div>
         <div className="flex gap-1 rounded-lg bg-secondary/60 border border-border/40 p-1">

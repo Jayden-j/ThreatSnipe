@@ -209,7 +209,7 @@ function IpDomainForm() {
             placeholder="Enter IP or domain"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="border-border bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+            className="border-border dark:border-white/15 bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
             disabled={loading}
           />
         </div>
@@ -598,7 +598,7 @@ function CidrForm() {
             placeholder="Enter CIDR (e.g. 192.168.1.0/24)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="border-border bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+            className="border-border dark:border-white/15 bg-secondary pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
             disabled={loading}
           />
         </div>

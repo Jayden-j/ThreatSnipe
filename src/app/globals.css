@@ -196,6 +196,17 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Theme fade — color transitions active only during switch (class injected by ModeToggle) */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition-property: background-color, background, border-color, color, fill, stroke, box-shadow !important;
+  transition-duration: 400ms !important;
+  transition-timing-function: ease !important;
+  transition-delay: 0ms !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import {
   Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RelatedTools, RelatedToolsStrip } from "@/components/related-tools";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,11 +75,33 @@ const RECORD_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string
 // ─── DnsForm ──────────────────────────────────────────────────────────────────
 
 function DnsForm() {
+  const searchParams = useSearchParams();
   const [domainInput, setDomainInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DnsResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
+  const autoTriggered = useRef(false);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !autoTriggered.current) {
+      autoTriggered.current = true;
+      setDomainInput(q);
+      setLoading(true);
+      fetch(`/api/dns?hostname=${encodeURIComponent(q)}`)
+        .then(async (r) => {
+          if (!r.ok) {
+            const e = await r.json().catch(() => null);
+            throw new Error(e?.error || "DNS lookup failed");
+          }
+          const data: DnsResult = await r.json();
+          setResult(data);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : "An unexpected error occurred"))
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +161,8 @@ function DnsForm() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
           <Network className="h-6 w-6 text-primary" />
@@ -312,6 +337,13 @@ function DnsForm() {
           )}
         </>
       )}
+
+      {result && !loading && (
+        <RelatedToolsStrip currentHref="/dns" currentInput={domainInput} />
+      )}
+      </div>
+
+      <RelatedTools currentHref="/dns" currentInput={domainInput} visible={!!(result && !loading)} />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { RelatedTools, RelatedToolsStrip } from "@/components/related-tools";
 
 interface PortInfo {
   port: number;
@@ -119,7 +120,7 @@ function PortForm() {
   const autoTriggered = useRef(false);
 
   useEffect(() => {
-    const target = searchParams.get("target");
+    const target = searchParams.get("target") || searchParams.get("q");
     if (target && !autoTriggered.current) {
       autoTriggered.current = true;
       setTargetInput(target);
@@ -211,7 +212,8 @@ function PortForm() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
           <ScanLine className="h-6 w-6 text-primary" />
@@ -420,6 +422,13 @@ function PortForm() {
           )}
         </div>
       )}
+
+      {result && !loading && (
+        <RelatedToolsStrip currentHref="/ports" currentInput={targetInput} />
+      )}
+      </div>
+
+      <RelatedTools currentHref="/ports" currentInput={targetInput} visible={!!(result && !loading)} />
     </div>
   );
 }

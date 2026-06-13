@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import {
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RelatedTools, RelatedToolsStrip } from "@/components/related-tools";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,11 +80,33 @@ function InfoRow({
 // ─── WhoisForm ────────────────────────────────────────────────────────────────
 
 function WhoisForm() {
+  const searchParams = useSearchParams();
   const [domainInput, setDomainInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WhoisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+  const autoTriggered = useRef(false);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !autoTriggered.current) {
+      autoTriggered.current = true;
+      setDomainInput(q);
+      setLoading(true);
+      fetch(`/api/whois?hostname=${encodeURIComponent(q)}`)
+        .then(async (r) => {
+          if (!r.ok) {
+            const e = await r.json().catch(() => null);
+            throw new Error(e?.error || "WHOIS lookup failed");
+          }
+          const data: WhoisResult = await r.json();
+          setResult(data);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : "An unexpected error occurred"))
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +156,8 @@ function WhoisForm() {
     : false;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
           <Globe className="h-6 w-6 text-primary" />
@@ -343,6 +368,13 @@ function WhoisForm() {
           </Card>
         </div>
       )}
+
+      {result && !loading && (
+        <RelatedToolsStrip currentHref="/whois" currentInput={domainInput} />
+      )}
+      </div>
+
+      <RelatedTools currentHref="/whois" currentInput={domainInput} visible={!!(result && !loading)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RelatedTools, RelatedToolsStrip } from "@/components/related-tools";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -180,10 +182,12 @@ function CustomTooltip({ active, payload }: any) {
 // ─── ServerStatusForm ─────────────────────────────────────────────────────────
 
 function ServerStatusForm() {
+  const searchParams = useSearchParams();
   const [hostInput, setHostInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ServerStatusResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const autoTriggered = useRef(false);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -224,6 +228,26 @@ function ServerStatusForm() {
     }
   }, [hostInput, result]);
 
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !autoTriggered.current) {
+      autoTriggered.current = true;
+      setHostInput(q);
+      setLoading(true);
+      fetch(`/api/server-status?host=${encodeURIComponent(q)}`)
+        .then(async (r) => {
+          if (!r.ok) {
+            const e = await r.json().catch(() => null);
+            throw new Error(e?.error || "Server status check failed");
+          }
+          const data: ServerStatusResult = await r.json();
+          setResult(data);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : "An unexpected error occurred"))
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
+
   const statusBadgeClass = result ? statusColorClass(result.overallStatus) : "";
 
   // Security headers we track
@@ -236,7 +260,8 @@ function ServerStatusForm() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
       {/* Header with Re-check button */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -754,6 +779,13 @@ function ServerStatusForm() {
           </Card>
         </>
       )}
+
+      {result && !loading && (
+        <RelatedToolsStrip currentHref="/server-status" currentInput={hostInput} />
+      )}
+      </div>
+
+      <RelatedTools currentHref="/server-status" currentInput={hostInput} visible={!!(result && !loading)} />
     </div>
   );
 }
@@ -761,5 +793,19 @@ function ServerStatusForm() {
 // ─── Page export ──────────────────────────────────────────────────────────────
 
 export default function ServerStatusPage() {
-  return <ServerStatusForm />;
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+            <Activity className="h-6 w-6 text-primary" />
+            Server Status
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ServerStatusForm />
+    </Suspense>
+  );
 }

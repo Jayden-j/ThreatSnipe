@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RelatedTools, RelatedToolsStrip } from "@/components/related-tools";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,11 +99,38 @@ function detectTargetType(input: string): "ip" | "domain" {
 // ─── Tab 1: IP / Domain Check ────────────────────────────────────────────────
 
 function IpDomainForm() {
+  const searchParams = useSearchParams();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BlacklistResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const autoTriggered = useRef(false);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !autoTriggered.current) {
+      autoTriggered.current = true;
+      setInput(q);
+      const type = detectTargetType(q);
+      setLoading(true);
+      fetch("/api/blacklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, target: q }),
+      })
+        .then(async (r) => {
+          if (!r.ok) {
+            const e = await r.json().catch(() => null);
+            throw new Error(e?.error || "Blacklist check failed");
+          }
+          const data: BlacklistResponse = await r.json();
+          setResult(data);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : "An unexpected error occurred"))
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +199,8 @@ function IpDomainForm() {
   const visibleClean = showAll ? cleanProviders : [];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
       <form onSubmit={handleSubmit} className="flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -397,6 +427,13 @@ function IpDomainForm() {
           </Card>
         </>
       )}
+
+      {result && !loading && (
+        <RelatedToolsStrip currentHref="/blacklist" currentInput={input} />
+      )}
+      </div>
+
+      <RelatedTools currentHref="/blacklist" currentInput={input} visible={!!(result && !loading)} />
     </div>
   );
 }
@@ -746,7 +783,13 @@ export default function BlacklistPage() {
         </TabsList>
 
         <TabsContent value="ip-domain" className="mt-6">
-          <IpDomainForm />
+          <Suspense fallback={
+            <div className="flex flex-col gap-3">
+              <div className="h-10 w-full animate-pulse rounded bg-secondary" />
+            </div>
+          }>
+            <IpDomainForm />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="cidr" className="mt-6">

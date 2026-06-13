@@ -16,6 +16,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RelatedTools, RelatedToolsStrip } from "@/components/related-tools";
 
 interface DomainResult {
   domain: string;
@@ -77,7 +78,7 @@ function DomainForm() {
   const autoTriggered = useRef(false);
 
   useEffect(() => {
-    const domain = searchParams.get("domain");
+    const domain = searchParams.get("domain") || searchParams.get("q");
     if (domain && !autoTriggered.current) {
       autoTriggered.current = true;
       setDomainInput(domain);
@@ -153,7 +154,8 @@ function DomainForm() {
     : "#";
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
           <Globe className="h-6 w-6 text-primary" />
@@ -319,6 +321,13 @@ function DomainForm() {
           </CardContent>
         </Card>
       )}
+
+      {result && !loading && (
+        <RelatedToolsStrip currentHref="/domain" currentInput={domainInput} />
+      )}
+      </div>
+
+      <RelatedTools currentHref="/domain" currentInput={domainInput} visible={!!(result && !loading)} />
     </div>
   );
 }

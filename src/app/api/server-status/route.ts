@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as dns from "dns/promises";
 import * as net from "net";
 import { checkSSLCertificate } from "@/lib/ssl";
+import { createClient } from "@/lib/supabase/server";
 
 interface PortResult {
   open: boolean;
@@ -335,6 +336,9 @@ async function runLatencySamples(host: string): Promise<{ samples: LatencySample
 }
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const host = searchParams.get("host");
 

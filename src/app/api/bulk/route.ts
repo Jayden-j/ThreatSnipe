@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolve4 } from "dns/promises";
+import { createClient } from "@/lib/supabase/server";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -289,6 +290,9 @@ async function processTarget(target: string): Promise<BulkResult> {
 // ─── Route Handler ───────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
     const { targets } = body;

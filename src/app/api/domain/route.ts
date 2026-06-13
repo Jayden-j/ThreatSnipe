@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/server";
 
 interface VirusTotalResponse {
   data?: {
@@ -75,6 +76,9 @@ function formatUnixTimestamp(timestamp: number): string {
 }
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const domainInput = searchParams.get("domain");
 

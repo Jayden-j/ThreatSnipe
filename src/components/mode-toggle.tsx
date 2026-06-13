@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function SunGlyph({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
@@ -55,12 +55,13 @@ export function ModeToggle() {
   }, []);
 
   const isDark = resolvedTheme === "dark";
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggle = () => {
-    // Inject global color transitions for the switch duration only
+    if (timerRef.current) clearTimeout(timerRef.current);
     document.documentElement.classList.add("theme-transitioning");
     setTheme(isDark ? "light" : "dark");
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       document.documentElement.classList.remove("theme-transitioning");
     }, 700);
   };
@@ -107,7 +108,7 @@ export function ModeToggle() {
           color: isDark
             ? "oklch(0.30 0.014 270)"
             : "oklch(0.52 0.14 82)",
-          transition: "color 400ms ease",
+          transition: "color 600ms ease",
           pointerEvents: "none",
         }}
       />
@@ -122,7 +123,7 @@ export function ModeToggle() {
           color: isDark
             ? "oklch(0.64 0.11 282)"
             : "oklch(0.70 0.04 270)",
-          transition: "color 400ms ease",
+          transition: "color 600ms ease",
           pointerEvents: "none",
         }}
       />

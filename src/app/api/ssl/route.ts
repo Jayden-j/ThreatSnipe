@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as tls from "tls";
+import { createClient } from "@/lib/supabase/server";
 
 interface SslResult {
   host: string;
@@ -37,6 +38,9 @@ function getOrg(obj: Record<string, string | string[] | undefined> | undefined):
 }
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const host = searchParams.get("host");
 

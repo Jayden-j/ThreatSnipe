@@ -93,7 +93,13 @@ export function AccountDropdown() {
           <Settings className="opacity-60" />
           <span>Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+        <DropdownMenuItem onClick={() => {
+          document.documentElement.classList.add("theme-transitioning");
+          setTheme(theme === "dark" ? "light" : "dark");
+          setTimeout(() => {
+            document.documentElement.classList.remove("theme-transitioning");
+          }, 700);
+        }}>
           {theme === "dark" ? (
             <Sun className="opacity-60" />
           ) : (

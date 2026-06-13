@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import {
   resolve,
   resolve4,
@@ -63,6 +64,9 @@ async function safeResolve<T>(
 // ─── GET Handler ──────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const hostname = searchParams.get("hostname");
 

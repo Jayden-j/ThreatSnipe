@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lookup } from "whois";
+import { createClient } from "@/lib/supabase/server";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,6 +139,9 @@ function parseWhoisOutput(text: string, domain: string): WhoisResult {
 // ─── GET Handler ──────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const hostname = searchParams.get("hostname");
 

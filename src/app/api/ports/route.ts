@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { Socket } from "net";
 import { lookup } from "dns/promises";
+import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 30;
 
@@ -146,6 +147,9 @@ async function scanPortsInBatches(
 }
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const target = searchParams.get("target");
 

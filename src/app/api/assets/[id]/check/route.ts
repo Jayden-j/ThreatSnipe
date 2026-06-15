@@ -293,10 +293,35 @@ export async function POST(
       console.error("Failed to save asset result:", saveError);
     }
 
-    // Update asset last_checked_at
+    // Recompute overall asset status from all latest results
+    const { data: allResults } = await supabase
+      .from("asset_results")
+      .select("tool_type, status, checked_at")
+      .eq("asset_id", id)
+      .eq("user_id", user.id)
+      .order("checked_at", { ascending: false });
+
+    const latestByTool: Record<string, string> = {};
+    for (const r of allResults ?? []) {
+      if (!latestByTool[r.tool_type]) latestByTool[r.tool_type] = r.status;
+    }
+    const statuses = Object.values(latestByTool);
+    let overallStatus: "clean" | "suspicious" | "threat" | "unknown" = "clean";
+    if (statuses.length === 0) overallStatus = "unknown";
+    else if (statuses.some((s) => s === "threat")) overallStatus = "threat";
+    else if (statuses.some((s) => s === "suspicious")) overallStatus = "suspicious";
+
+    const checksTotal = statuses.length;
+    const checksPassed = statuses.filter((s) => s === "clean").length;
+
     await supabase
       .from("assets")
-      .update({ last_checked_at: new Date().toISOString() })
+      .update({
+        last_checked_at: new Date().toISOString(),
+        last_status: overallStatus,
+        checks_total: checksTotal,
+        checks_passed: checksPassed,
+      })
       .eq("id", id)
       .eq("user_id", user.id);
 

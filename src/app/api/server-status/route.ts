@@ -2,7 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import * as dns from "dns/promises";
 import * as net from "net";
 import { checkSSLCertificate } from "@/lib/ssl";
-import { createClient } from "@/lib/supabase/server";
+import { authenticate } from "@/lib/api-auth";
+import { ratelimit } from "@/lib/ratelimit";
+
+function isBlockedHost(host: string): boolean {
+  if (/^localhost$/i.test(host)) return true;
+  return /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.)/.test(host) || host === "::1";
+}
+
+function isSafeRedirectUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && !isBlockedHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
 
 interface PortResult {
   open: boolean;
@@ -118,6 +133,7 @@ async function checkHttp(host: string): Promise<HttpResult> {
         const location = response.headers.get("location") || "";
         // Follow redirect to get the next hop
         try {
+          if (!isSafeRedirectUrl(location)) throw new Error("Redirect blocked");
           const followStart = Date.now();
           const followController = new AbortController();
           const followTimeout = setTimeout(() => followController.abort(), 5000);
@@ -135,6 +151,7 @@ async function checkHttp(host: string): Promise<HttpResult> {
             // Follow one more hop
             const location2 = followResponse.headers.get("location") || "";
             try {
+              if (!isSafeRedirectUrl(location2)) throw new Error("Redirect blocked");
               const followController2 = new AbortController();
               const followTimeout2 = setTimeout(() => followController2.abort(), 5000);
               const followResponse2 = await fetch(location2, {
@@ -212,6 +229,7 @@ async function checkHttp(host: string): Promise<HttpResult> {
           });
           const location = response.headers.get("location") || "";
           try {
+            if (!isSafeRedirectUrl(location)) throw new Error("Redirect blocked");
             const followStart = Date.now();
             const followController = new AbortController();
             const followTimeout = setTimeout(() => followController.abort(), 5000);
@@ -227,6 +245,7 @@ async function checkHttp(host: string): Promise<HttpResult> {
             if (followResponse.status >= 301 && followResponse.status <= 308 && followResponse.headers.has("location")) {
               const location2 = followResponse.headers.get("location") || "";
               try {
+                if (!isSafeRedirectUrl(location2)) throw new Error("Redirect blocked");
                 const followController2 = new AbortController();
                 const followTimeout2 = setTimeout(() => followController2.abort(), 5000);
                 const followResponse2 = await fetch(location2, {
@@ -336,9 +355,12 @@ async function runLatencySamples(host: string): Promise<{ samples: LatencySample
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticate(request);
+  if (!auth.authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.userId) {
+    const { success } = await ratelimit.limit(auth.userId);
+    if (!success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const { searchParams } = new URL(request.url);
   const host = searchParams.get("host");
 
@@ -347,6 +369,10 @@ export async function GET(request: NextRequest) {
       { error: "Missing required parameter: host" },
       { status: 400 }
     );
+  }
+
+  if (isBlockedHost(host)) {
+    return NextResponse.json({ error: "Private and reserved IP ranges are not allowed" }, { status: 400 });
   }
 
   const results = await Promise.allSettled([

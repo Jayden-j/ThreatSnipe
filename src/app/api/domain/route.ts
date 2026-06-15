@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@/lib/supabase/server";
+import { authenticate } from "@/lib/api-auth";
+import { ratelimit } from "@/lib/ratelimit";
 
 interface VirusTotalResponse {
   data?: {
@@ -57,7 +58,7 @@ function cleanDomain(input: string): string {
 }
 
 function isValidDomain(domain: string): boolean {
-  return domain.length > 0 && domain.includes(".");
+  return /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(domain) && domain.length <= 253;
 }
 
 function getVerdict(malicious: number, suspicious: number): "CLEAN" | "SUSPICIOUS" | "MALICIOUS" {
@@ -76,9 +77,12 @@ function formatUnixTimestamp(timestamp: number): string {
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticate(request);
+  if (!auth.authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.userId) {
+    const { success } = await ratelimit.limit(auth.userId);
+    if (!success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const { searchParams } = new URL(request.url);
   const domainInput = searchParams.get("domain");
 

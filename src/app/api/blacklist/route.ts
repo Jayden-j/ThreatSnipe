@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { resolve } from "dns/promises";
-import { createClient } from "@/lib/supabase/server";
+import { authenticate } from "@/lib/api-auth";
+import { heavyRatelimit } from "@/lib/ratelimit";
 
 // ─── DNSBL Providers ──────────────────────────────────────────────────────────
 
@@ -336,9 +337,12 @@ async function checkIpAgainstAllProviders(ip: string, isDomain: boolean): Promis
 // ─── POST Handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  const auth = await authenticate(request);
+  if (!auth.authorized) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  if (auth.userId) {
+    const { success } = await heavyRatelimit.limit(auth.userId);
+    if (!success) return new Response(JSON.stringify({ error: "Too many requests" }), { status: 429, headers: { "Content-Type": "application/json" } });
+  }
   try {
     const body = await request.json();
     const { type, target } = body as { type?: string; target?: string };
@@ -528,9 +532,12 @@ export async function POST(request: NextRequest) {
 // ─── GET Handler (legacy) ────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  const auth = await authenticate(request);
+  if (!auth.authorized) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  if (auth.userId) {
+    const { success } = await heavyRatelimit.limit(auth.userId);
+    if (!success) return new Response(JSON.stringify({ error: "Too many requests" }), { status: 429, headers: { "Content-Type": "application/json" } });
+  }
   const { searchParams } = new URL(request.url);
   const hostname = searchParams.get("hostname");
 

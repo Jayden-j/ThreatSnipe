@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { Socket } from "net";
 import { lookup } from "dns/promises";
-import { createClient } from "@/lib/supabase/server";
+import { authenticate } from "@/lib/api-auth";
+import { heavyRatelimit } from "@/lib/ratelimit";
 
 export const maxDuration = 30;
 
@@ -88,6 +89,11 @@ function isValidTarget(input: string): boolean {
   return isValidIPv4(input) || isValidHostname(input);
 }
 
+function isPrivateIP(ip: string): boolean {
+  if (/^localhost$/i.test(ip)) return true;
+  return /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.)/.test(ip) || ip === "::1";
+}
+
 async function resolveHost(target: string): Promise<string> {
   if (isValidIPv4(target)) return target;
   try {
@@ -147,9 +153,12 @@ async function scanPortsInBatches(
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticate(request);
+  if (!auth.authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.userId) {
+    const { success } = await heavyRatelimit.limit(auth.userId);
+    if (!success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const { searchParams } = new URL(request.url);
   const target = searchParams.get("target");
 
@@ -172,6 +181,10 @@ export async function GET(request: NextRequest) {
   try {
     // Resolve hostname to IP for display
     const host = await resolveHost(trimmedTarget);
+
+    if (isPrivateIP(host)) {
+      return NextResponse.json({ error: "Private and reserved IP ranges are not allowed" }, { status: 400 });
+    }
 
     // Scan common ports
     const ports = await scanPortsInBatches(host, COMMON_PORTS);

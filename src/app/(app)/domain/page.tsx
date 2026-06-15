@@ -150,7 +150,7 @@ function DomainForm() {
     : 0;
   const flaggedCount = result ? result.malicious + result.suspicious : 0;
   const vtUrl = result
-    ? `https://www.virustotal.com/gui/${result.inputType === "ip" ? "ip-address" : "domain"}/${result.domain}`
+    ? `https://www.virustotal.com/gui/${result.inputType === "ip" ? "ip-address" : "domain"}/${encodeURIComponent(result.domain)}`
     : "#";
 
   return (

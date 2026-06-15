@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as tls from "tls";
-import { createClient } from "@/lib/supabase/server";
+import { authenticate } from "@/lib/api-auth";
+import { ratelimit } from "@/lib/ratelimit";
 
 interface SslResult {
   host: string;
@@ -37,10 +38,18 @@ function getOrg(obj: Record<string, string | string[] | undefined> | undefined):
   return "";
 }
 
+function isBlockedHost(host: string): boolean {
+  if (/^localhost$/i.test(host)) return true;
+  return /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.)/.test(host) || host === "::1";
+}
+
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticate(request);
+  if (!auth.authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.userId) {
+    const { success } = await ratelimit.limit(auth.userId);
+    if (!success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const { searchParams } = new URL(request.url);
   const host = searchParams.get("host");
 
@@ -49,6 +58,10 @@ export async function GET(request: NextRequest) {
       { error: "Missing required parameter: host" },
       { status: 400 }
     );
+  }
+
+  if (isBlockedHost(host)) {
+    return NextResponse.json({ error: "Private and reserved IP ranges are not allowed" }, { status: 400 });
   }
 
   try {

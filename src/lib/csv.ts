@@ -4,7 +4,13 @@ export function downloadCSV(rows: Record<string, string>[], filename: string) {
   const headers = Object.keys(rows[0]);
   const csv = [
     headers,
-    ...rows.map((r) => headers.map((h) => `"${r[h] ?? ""}"`)),
+    ...rows.map((r) =>
+      headers.map((h) => {
+        const v = String(r[h] ?? "");
+        const safe = /^[=+\-@|]/.test(v) ? `'${v}` : v;
+        return `"${safe.replace(/"/g, '""')}"`;
+      })
+    ),
   ]
     .map((r) => r.join(","))
     .join("\n");

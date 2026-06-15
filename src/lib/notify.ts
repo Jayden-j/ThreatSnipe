@@ -168,7 +168,20 @@ function buildSlackPayload(payload: AlertPayload): object {
 
 // ─── Core send functions ──────────────────────────────────────────────────────
 
+function isAllowedWebhookUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      (parsed.hostname === "discord.com" || parsed.hostname === "hooks.slack.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function sendToDiscord(webhookUrl: string, payload: AlertPayload): Promise<boolean> {
+  if (!isAllowedWebhookUrl(webhookUrl)) return false;
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",
@@ -182,6 +195,7 @@ async function sendToDiscord(webhookUrl: string, payload: AlertPayload): Promise
 }
 
 async function sendToSlack(webhookUrl: string, payload: AlertPayload): Promise<boolean> {
+  if (!isAllowedWebhookUrl(webhookUrl)) return false;
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",

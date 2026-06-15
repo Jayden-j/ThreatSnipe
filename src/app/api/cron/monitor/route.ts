@@ -196,9 +196,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ checked: 0, skipped: assets.length });
   }
 
-  const protocol = request.headers.get("x-forwarded-proto") ?? "http";
-  const host = request.headers.get("host") ?? "localhost:3000";
-  const baseUrl = `${protocol}://${host}`;
+  const baseUrl = process.env.SITE_URL ?? `${request.headers.get("x-forwarded-proto") ?? "https"}://${request.headers.get("host")}`;
 
   for (const asset of dueAssets) {
     const enabledTools = Object.entries(asset.checks_enabled as Record<string, boolean>)
@@ -213,16 +211,17 @@ export async function POST(request: NextRequest) {
 
       let toolResponse: Response;
       try {
+        const cronHeader = { "Authorization": `Bearer ${process.env.CRON_SECRET}` };
         if (endpoint.method === "POST") {
           const blacklistType = asset.type === "ip" ? "ip" : "domain";
           toolResponse = await fetch(`${baseUrl}${endpoint.path}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...cronHeader },
             body: JSON.stringify({ type: blacklistType, target: asset.target }),
           });
         } else {
           const qs = new URLSearchParams({ [endpoint.param]: asset.target as string }).toString();
-          toolResponse = await fetch(`${baseUrl}${endpoint.path}?${qs}`);
+          toolResponse = await fetch(`${baseUrl}${endpoint.path}?${qs}`, { headers: cronHeader });
         }
       } catch {
         continue;

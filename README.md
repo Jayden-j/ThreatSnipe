@@ -23,9 +23,11 @@ Add an IP, domain, or subnet. ThreatSnipe watches it — checking reputation, bl
 
 ## Screenshots
 
-| Dashboard | Asset Monitoring | Scan Result |
+> Live at **[threatsnipe.vercel.app](https://threatsnipe.vercel.app)**
+
+| Dashboard | Asset Detail | Lookup Tool |
 |:---:|:---:|:---:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Assets](docs/screenshots/assets.png) | ![Scan](docs/screenshots/scan.png) |
+| *coming soon* | *coming soon* | *coming soon* |
 
 ---
 
@@ -122,6 +124,7 @@ pnpm dev
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key — server-side only |
 | `ABUSEIPDB_API_KEY` | [abuseipdb.com/account/api](https://www.abuseipdb.com/account/api) |
 | `VIRUSTOTAL_API_KEY` | [virustotal.com/gui/my-apikey](https://www.virustotal.com/gui/my-apikey) |
+| `CRON_SECRET` | Secret for the `/api/cron/monitor` endpoint — generate with `openssl rand -hex 32` |
 
 DNS records, SSL, WHOIS, port scanning, and server status work without any API keys.
 

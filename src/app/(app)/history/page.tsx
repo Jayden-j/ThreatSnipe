@@ -590,7 +590,7 @@ function DomainDetail({ raw }: { raw: Record<string, unknown> }) {
                   <Tooltip
                     cursor={{ fill: "transparent" }}
                     contentStyle={{
-                      backgroundColor: "#0f0f1a",
+                      backgroundColor: "#181826",
                       border: "1px solid rgba(99,102,241,0.35)",
                       borderRadius: "8px",
                       color: "#f1f5f9",
@@ -758,7 +758,7 @@ function PortScanDetail({ raw }: { raw: Record<string, unknown> }) {
                 <Tooltip
                   cursor={{ fill: "transparent" }}
                   contentStyle={{
-                    backgroundColor: "#0f0f1a",
+                    backgroundColor: "#181826",
                     border: "1px solid rgba(99,102,241,0.35)",
                     borderRadius: "8px",
                     color: "#f1f5f9",

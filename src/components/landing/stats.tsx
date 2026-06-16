@@ -142,7 +142,7 @@ export function StatsSection() {
                 ease: "easeOut",
               }}
               className="flex flex-col items-center text-center p-8 md:p-10"
-              style={{ background: "#141421" }}
+              style={{ background: "#1c1c2e" }}
             >
               <StatNumber stat={stat} />
               <p className="mt-2 text-sm font-semibold text-white font-body">{stat.label}</p>

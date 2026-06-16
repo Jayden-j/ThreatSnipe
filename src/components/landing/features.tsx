@@ -163,7 +163,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
       className="group relative rounded-2xl p-6 cursor-default transition-all duration-300"
       style={{
-        background: "#141421",
+        background: "#1c1c2e",
         border: "1px solid rgba(255,255,255,0.06)",
       }}
     >

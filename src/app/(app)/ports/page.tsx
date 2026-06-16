@@ -335,7 +335,7 @@ function PortForm() {
                       <Tooltip
                         cursor={{ fill: "transparent" }}
                         contentStyle={{
-                          backgroundColor: "#0f0f1a",
+                          backgroundColor: "#181826",
                           border: "1px solid rgba(99,102,241,0.35)",
                           borderRadius: "8px",
                           color: "#fff",

@@ -8,7 +8,7 @@ import { LandingFooter } from "@/components/landing/footer";
 
 export default function HomePage() {
   return (
-    <div style={{ background: "#0b0b14", color: "#f1f5f9" }} className="min-h-screen overflow-x-hidden">
+    <div style={{ background: "#131320", color: "#f1f5f9" }} className="min-h-screen overflow-x-hidden">
       <LandingNavbar />
       <HeroSection />
       <FeaturesSection />

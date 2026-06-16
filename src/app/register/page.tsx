@@ -412,8 +412,8 @@ export default function RegisterPage() {
 
 function ScanResultMockup() {
   const C = {
-    bg: "#0f0f1a",
-    surface: "#141421",
+    bg: "#181826",
+    surface: "#1c1c2e",
     border: "rgba(255,255,255,0.06)",
     text: "#f1f5f9",
     muted: "#64748b",

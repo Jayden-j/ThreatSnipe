@@ -141,7 +141,7 @@ export function HeroSection() {
         >
           <div
             className="rounded-2xl overflow-hidden"
-            style={{ background: "#0f0f1a" }}
+            style={{ background: "#181826" }}
           >
             {/* Window chrome */}
             <div
@@ -170,7 +170,7 @@ export function HeroSection() {
         <div
           className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
           style={{
-            background: "linear-gradient(to bottom, transparent, #0b0b14)",
+            background: "linear-gradient(to bottom, transparent, #131320)",
           }}
           aria-hidden="true"
         />
@@ -245,8 +245,8 @@ function OrbBackground({ prefersReduced }: { prefersReduced: boolean }) {
 
 function DashboardPreview() {
   const C = {
-    bg: "#0f0f1a",
-    surface: "#141421",
+    bg: "#181826",
+    surface: "#1c1c2e",
     border: "rgba(255,255,255,0.06)",
     text: "#f1f5f9",
     muted: "#64748b",

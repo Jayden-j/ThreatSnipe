@@ -141,7 +141,7 @@ function StepCard({ step, index }: { step: Step; index: number }) {
           <span
             className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-bold font-mono"
             style={{
-              background: "#0b0b14",
+              background: "#131320",
               border: `1px solid ${step.glowColor.replace("0.2)", "0.6)")}`,
               color: step.iconColor,
             }}

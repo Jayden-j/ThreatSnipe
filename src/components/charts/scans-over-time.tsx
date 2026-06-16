@@ -56,7 +56,7 @@ export function ScansOverTime({ data }: ScansOverTimeProps) {
                 <Tooltip
                   cursor={{ stroke: "rgba(99,102,241,0.2)", strokeWidth: 1 }}
                   contentStyle={{
-                    backgroundColor: "#0f0f1a",
+                    backgroundColor: "#181826",
                     border: "1px solid rgba(99,102,241,0.35)",
                     borderRadius: "8px",
                     color: "#f1f5f9",

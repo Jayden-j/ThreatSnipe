@@ -56,7 +56,7 @@ Go to your Supabase dashboard → **SQL Editor** and run the files from `supabas
 6. `add_user_settings.sql`
 7. `migrate_alerts_v2.sql`
 
-Each file creates the tables ThreatSnipe needs with RLS already set up — you don't need to configure anything else in the dashboard for the database to work.
+Each file creates the tables ThreatSnipe needs. RLS is already configured so you don't need to touch anything else in the dashboard.
 
 ---
 
@@ -72,7 +72,7 @@ This is what makes automated asset checks actually run. Don't use Vercel Cron fo
 - Replace `YOUR_SITE_URL` with your actual deployment URL
 - Replace `YOUR_CRON_SECRET` with the same value you put in `CRON_SECRET`
 
-The job runs every minute but only checks assets whose interval has elapsed — so an asset set to every 60 minutes gets checked once an hour, not every minute.
+The job runs every minute but only checks assets whose interval has elapsed. An asset set to every 60 minutes gets checked once an hour, not every minute.
 
 ---
 

@@ -19,15 +19,38 @@
 
 ---
 
-Add an IP, domain, or subnet and ThreatSnipe monitors it — checking reputation feeds, blacklists, and DNS records on a schedule. Alerts fire to Discord or Slack when something changes. All the investigation tools are built in.
+Add an IP, domain, or subnet and ThreatSnipe monitors it. It checks reputation feeds, blacklists, and DNS records on a schedule. When something changes, alerts fire to Discord or Slack. Every investigation tool you need is already built in.
 
 ---
+
+<!-- Replace with a screen recording showing asset monitoring and alert flow -->
+![Demo](public/demo.gif)
+
+---
+
+## Screenshots
 
 ![Dashboard](public/Dashbord.png)
 
 ![Asset Detail](public/Asset%20Detail.png)
 
 ![Lookup Tool](public/Lookup%20Test.png)
+
+<!-- Replace with a screen recording of the lookup tools in action -->
+![Tools Demo](public/tools-demo.gif)
+
+---
+
+## Security concepts
+
+| Concept | How it applies |
+|---|---|
+| **Threat Intelligence** | Classifies IPs and domains against known IOCs using AbuseIPDB and VirusTotal |
+| **OSINT / Passive Recon** | WHOIS and DNS lookups pull public data without actively probing the target |
+| **DNSBL** | Checks 20+ DNS blackhole lists used by mail gateways and firewalls worldwide |
+| **Email Security** | Validates SPF, DKIM, and DMARC to surface phishing-prone domain configurations |
+| **Network Enumeration** | Port scanning with flagging for high-risk exposed services like RDP, SMB, and Telnet |
+| **TLS / PKI** | Parses full X.509 cert chains to detect expiry and potential MitM risk |
 
 ---
 
@@ -50,12 +73,18 @@ Add an IP, domain, or subnet and ThreatSnipe monitors it — checking reputation
 
 ## Stack
 
-- **Next.js 16** — Server Components for data fetching, API route handlers proxy all external calls so keys never hit the browser
-- **Supabase** — Postgres with Row-Level Security, auth (email + GitHub/Google OAuth), Realtime for live alerts
-- **Upstash Redis** — per-user rate limiting across all API routes
-- **Recharts + Framer Motion** — trend charts and page transitions
-- **node-forge** — X.509 cert parsing server-side
-- **Tailwind CSS 4 + shadcn/ui**
+| Category | Technology |
+|---|---|
+| Framework | Next.js 16, App Router, Server Components |
+| Database | Supabase Postgres with Row-Level Security |
+| Auth | Supabase Auth, email, GitHub OAuth, Google OAuth |
+| Background Jobs | Supabase pg_cron with pg_net |
+| Rate Limiting | Upstash Redis |
+| UI | Tailwind CSS 4, shadcn/ui, Radix UI |
+| Charts | Recharts, Framer Motion |
+| Cert Parsing | node-forge |
+
+API keys are never exposed to the browser. Every external call to AbuseIPDB and VirusTotal goes through Next.js route handlers server-side.
 
 ---
 
@@ -98,14 +127,14 @@ graph TD
 
 ## Things I learned
 
-- SPF `~all` (softfail) gives almost no spoofing protection — most mail servers treat it as a pass. ThreatSnipe flags it as a misconfiguration
-- DNSBL lookups work through reverse DNS (RFC 5782), not a REST API — the format clicked once I read how blackhole zones actually work
-- RLS policies on joined tables apply independently — a join between two RLS-protected tables can silently return zero rows, which took a while to debug
-- User-supplied webhook URLs are an SSRF vector — URLs are validated to HTTPS endpoints on `discord.com` or `hooks.slack.com` only
+- SPF `~all` (softfail) gives almost no spoofing protection. Most mail servers treat it as a pass, so ThreatSnipe flags it as a misconfiguration instead of clean
+- DNSBL lookups work through reverse DNS (RFC 5782), not a REST API. The format made more sense once I read how blackhole zones actually work
+- RLS policies on joined tables apply independently. A join between two RLS-protected tables can silently return zero rows with no error, which took a while to debug
+- User-supplied webhook URLs are an SSRF vector. All URLs are validated to HTTPS endpoints on `discord.com` or `hooks.slack.com` before any request is made
 
 ---
 
-> Setup, environment variables, SQL migrations, and pg_cron config → [SETUP.md](SETUP.md)
+> Setup, SQL migrations, env vars, and pg_cron config are in [SETUP.md](SETUP.md)
 
 <div align="center">
   <sub>Built by <a href="https://github.com/Jayden-j">Jayden Johnson</a> · Seeking cybersecurity internship opportunities</sub>

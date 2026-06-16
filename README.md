@@ -17,13 +17,11 @@
 
 ---
 
-Add an IP, domain, or subnet. ThreatSnipe watches it — checking reputation, blacklists, and threat feeds on a schedule. The moment something changes, you get alerted. Every tool you need to investigate further is already built in.
+Add an IP, domain, or subnet and ThreatSnipe keeps an eye on it. It checks reputation feeds, blacklists, and DNS records on a schedule — if anything changes, you get an alert in Discord or Slack. All the investigation tools you'd need are already built in.
 
 ---
 
 ## Screenshots
-
-> Live at **[threatsnipe.vercel.app](https://threatsnipe.vercel.app)**
 
 ![Dashboard](public/Dashbord.png)
 
@@ -35,133 +33,147 @@ Add an IP, domain, or subnet. ThreatSnipe watches it — checking reputation, bl
 
 ## How it works
 
-**1. Register your assets**
-Add any IP address, domain, or CIDR block — your own infrastructure, a third-party vendor, or a suspicious indicator pulled from an incident. Each asset gets its own check schedule and alert thresholds.
+**Add your assets**
+Register any IP address, domain, or CIDR range. You pick which checks run and how often, and set your own alert thresholds per asset.
 
-**2. Continuous threat monitoring**
-ThreatSnipe runs scheduled checks against threat intelligence feeds (AbuseIPDB, VirusTotal), DNS-based blackhole lists, and direct asset probes. Every result is timestamped and stored so reputation changes are tracked over time, not just the current state.
+**It monitors them on a schedule**
+Checks run automatically against AbuseIPDB, VirusTotal, and 20+ DNSBL providers. Every result is saved so you can see how an asset's reputation changes over time, not just where it stands right now.
 
-**3. Alert on status changes**
-When an asset crosses a severity threshold — new DNSBL listing, AbuseIPDB confidence score spike, domain flagged malicious across 70+ AV engines — an alert fires and gets pushed to Discord or Slack.
+**You get alerted**
+When something crosses a threshold — a new blacklist hit, an abuse score spike, a domain flagged across 70+ AV engines — an alert fires and gets pushed to Discord or Slack.
 
-**4. Investigate with built-in OSINT tools**
-WHOIS, DNS records, SSL certificate analysis, port enumeration — every reconnaissance tool is available on demand without switching platforms or accounts.
+**Dig in with the built-in tools**
+WHOIS, DNS records, SSL cert analysis, port scanning — everything you'd want for a quick investigation without switching platforms.
 
 ---
 
-## Security concepts
+## What this covers
 
-| Concept | How ThreatSnipe applies it |
-|---|---|
-| **Threat Intelligence (CTI)** | Aggregates IOC data from AbuseIPDB (crowdsourced abuse reports) and VirusTotal (70+ engine verdicts) to score IPs and domains against known indicators of compromise |
-| **DNSBL / Reputation Feeds** | Queries 20+ DNS-Based Blackhole Lists simultaneously — the same lists used by mail gateways and edge firewalls to block spam sources, botnets, and malware C2 infrastructure |
-| **Abuse Confidence Scoring** | AbuseIPDB's score is probabilistic, not binary. Thresholds (>15 = suspicious, >50 = threat) are modeled on how the score is weighted by report recency, volume, and reporter reputation |
-| **Email Security (Anti-Phishing)** | Validates SPF, DKIM, and DMARC records — the three standards that prevent domain spoofing and phishing. Distinguishes between SPF `~all` (softfail, largely ineffective) and `-all` (hardfail, enforced rejection) |
-| **TLS / PKI Monitoring** | Parses full X.509 certificate chains to detect expired or soon-to-expire certificates. An expired cert is both a service availability risk and, in some configurations, a vector for MitM if clients fail open |
-| **Network Enumeration** | TCP port scanning that flags exposure of high-risk services: FTP (21), Telnet (23), SMB (445), RDP (3389), and database ports commonly targeted during initial access and lateral movement |
-| **OSINT / Passive Recon** | WHOIS and DNS record lookups retrieve public registration and infrastructure data without actively probing the target — consistent with passive reconnaissance methodology |
-| **CIDR / Subnet Analysis** | Scans /8–/32 ranges to surface any blacklisted or high-abuse hosts in one pass — useful for auditing cloud provider blocks, acquired infrastructure, or ranges seen in threat reports |
+The security concepts I built this around — things that came up constantly in Security+ material and TryHackMe:
+
+**Threat Intelligence (CTI)**
+ThreatSnipe pulls from AbuseIPDB and VirusTotal to classify IPs and domains against known IOCs. AbuseIPDB uses crowdsourced abuse reports; VirusTotal aggregates verdicts from 70+ antivirus engines. Threat intel is how security teams answer "is this thing actually malicious?" without just guessing. The score isn't binary either — AbuseIPDB's confidence score accounts for report recency and reporter reputation, so an IP with a score of 8 is very different from one sitting at 85.
+
+**Email Security — SPF, DKIM, DMARC**
+Phishing is still the number one initial access vector, and these three DNS records are the main technical defense against it. SPF defines which servers are allowed to send mail for a domain. DKIM adds a signature so receivers can verify the message wasn't tampered with. DMARC tells mail servers what to do when either check fails. One thing I didn't expect: SPF with `~all` (softfail) gives almost no real protection because most mail servers just let it through anyway. ThreatSnipe flags that as a misconfiguration, not a pass.
+
+**OSINT / Passive Recon**
+WHOIS and DNS lookups pull public registration and infrastructure data without touching the target directly. This is passive recon — you're gathering information from public sources rather than probing the target, which is an important distinction. It's one of the first things you do in any legitimate security assessment.
+
+**Network Enumeration**
+Port scanning shows what services a host is exposing. ThreatSnipe flags high-risk ports specifically — SMB (445), RDP (3389), Telnet (23), FTP (21), and open database ports that show up constantly in initial access and lateral movement scenarios.
+
+**DNS-Based Blackhole Lists (DNSBL)**
+DNSBLs are how mail servers and firewalls filter spam, botnets, and malware C2 infrastructure in real time. They work through reverse DNS — you flip the IP octets and query a known zone, so `192.168.0.1` becomes `1.0.168.192.zen.spamhaus.org`. ThreatSnipe checks 20+ of these simultaneously.
+
+**TLS / Certificate Monitoring**
+An expired cert causes outages and, depending on how the client handles it, can open the door to MitM attacks. ThreatSnipe parses the full X.509 chain to catch certs that are about to expire before they cause problems.
 
 ---
 
 ## Tools
 
-| | Tool | What it checks |
+| | Tool | What it does |
 |---|---|---|
-| 🛡️ | **IP Reputation** | AbuseIPDB confidence score, ISP, geolocation, report history |
-| 🌐 | **VirusTotal** | Domain/IP verdict across 70+ antivirus and threat intelligence engines |
-| 📋 | **Blacklist Check** | 20+ DNSBL providers checked simultaneously |
-| 🔬 | **CIDR Scan** | Entire subnets /8–/32 — surfaces any flagged hosts in one pass |
-| 🔌 | **Port Scanner** | Open TCP ports and inferred running services |
-| 🌍 | **DNS Records** | A, AAAA, MX, TXT, CNAME, NS — full record set |
-| 📄 | **WHOIS** | Registrar, creation/expiry dates, ownership records |
-| 🔒 | **SSL Checker** | Certificate validity, chain, issuer, expiry |
-| 📧 | **Email Security** | SPF, DKIM, DMARC validation |
-| 🖥️ | **Server Status** | HTTP status, latency, redirect chains |
+| 🛡️ | **IP Reputation** | AbuseIPDB score, ISP, geolocation, report history |
+| 🌐 | **VirusTotal** | Domain/IP verdict across 70+ engines |
+| 📋 | **Blacklist Check** | 20+ DNSBL providers at once |
+| 🔬 | **CIDR Scan** | Subnets /8–/32 — surfaces flagged hosts in one pass |
+| 🔌 | **Port Scanner** | Open TCP ports and running services |
+| 🌍 | **DNS Records** | A, AAAA, MX, TXT, CNAME, NS |
+| 📄 | **WHOIS** | Registrar, creation/expiry, ownership records |
+| 🔒 | **SSL Checker** | Cert validity, chain, issuer, expiry |
+| 📧 | **Email Security** | SPF, DKIM, DMARC |
+| 🖥️ | **Server Status** | HTTP status, response time, redirect chain |
 
 ---
 
-## Security architecture
+## How the app itself is secured
 
-How the application itself is secured:
+A few things I was deliberate about when building this:
 
-- **API key isolation** — Every call to AbuseIPDB and VirusTotal is proxied through server-side route handlers. Credentials never appear in client-side network requests — an application of OWASP API Security Top 10 (API8: Security Misconfiguration).
-- **Row-Level Security** — Supabase RLS policies enforce `user_id = auth.uid()` at the database layer. Even a compromised application layer cannot query another user's assets, scans, or alerts — access control is at the data, not just the API.
-- **Rate limiting** — Per-user limits enforced via Upstash Redis: 20 req/min for standard tools, 5 req/min for resource-intensive operations (port scan, blacklist check). Prevents abuse and protects third-party API quotas.
-- **Cron authentication** — The `/api/cron/monitor` endpoint rejects any request without a valid `Authorization: Bearer` header matched against a secret generated with `openssl rand -hex 32`.
-- **Webhook SSRF mitigation** — User-supplied notification webhook URLs are validated server-side to only accept HTTPS endpoints from `discord.com` or `hooks.slack.com`, preventing server-side request forgery via attacker-controlled URLs.
-- **CSV injection prevention** — Exported scan data is sanitized before download. Cells beginning with `=`, `+`, `-`, or `@` are escaped to prevent formula injection when opened in spreadsheet software.
+**API keys stay server-side.** Every call to AbuseIPDB and VirusTotal goes through a Next.js route handler. The keys never hit the browser, so there's no way to grab them from network tabs. This is directly from OWASP API Security Top 10 — API8 (Security Misconfiguration).
+
+**RLS at the database layer.** Supabase RLS policies enforce `user_id = auth.uid()` in Postgres directly, not in the app code. Even if someone bypassed the application layer, they still can't query another user's data — the restriction lives in the database.
+
+**Rate limiting.** Per-user limits via Upstash Redis — 20 req/min for standard tools, 5 req/min for heavier ones like port scanning. Keeps things from being abused and protects the third-party API quotas.
+
+**Cron endpoint auth.** The `/api/cron/monitor` endpoint requires a Bearer token matched against a secret generated with `openssl rand -hex 32`. No token, no access.
+
+**Webhook SSRF.** When users paste in a Discord or Slack webhook URL, the server makes an outbound HTTP call to it — which is SSRF if you accept any URL. URLs are validated to only allow HTTPS from `discord.com` or `hooks.slack.com`.
+
+**CSV injection.** Exported data is sanitized before download. Cells starting with `=`, `+`, `-`, or `@` get escaped so spreadsheet software doesn't execute them as formulas.
 
 ---
 
 ## Stack
 
-- **Next.js 16 App Router** — dashboard data is fetched server-side with async Server Components. No client-side waterfalls, no loading spinners on page load.
-- **Supabase** — handles auth (email + GitHub/Google OAuth), PostgreSQL database, and Row-Level Security. RLS policies enforce data isolation at the database layer, not just the application layer.
-- **Upstash Redis** — serverless Redis for per-user, per-endpoint rate limiting across all API routes.
-- **Tailwind CSS 4 + shadcn/ui** — custom dark design system built on Radix UI primitives for accessibility.
-- **Framer Motion + Recharts** — scan trend charts, threat breakdown visualization, page transitions.
-- **node-forge** — X.509 certificate parsing directly in the server runtime without shelling out.
-- **GSAP + Three.js** — landing page animations.
+- **Next.js 16 App Router** — Server Components handle data fetching, so the dashboard loads with real data and no loading spinners.
+- **Supabase** — auth (email + GitHub/Google OAuth), Postgres with RLS, and Realtime for live alert updates.
+- **Upstash Redis** — serverless Redis for per-user rate limiting.
+- **Tailwind CSS 4 + shadcn/ui** — dark design system on Radix primitives.
+- **Recharts + Framer Motion** — trend charts, threat breakdown, transitions.
+- **node-forge** — X.509 cert parsing on the server.
+- **GSAP + Three.js** — landing page.
 
 ---
 
-## Architecture
+## Folder structure
 
 ```
 src/
 ├── app/
-│   ├── (app)/              # Protected — redirects to /login if no session
-│   │   ├── dashboard/      # Threat overview: KPIs, scan trends, alert feed
-│   │   ├── assets/         # Monitored asset management and per-asset detail
-│   │   ├── alerts/         # Alert feed — severity filtering, read/dismiss
-│   │   ├── history/        # Scan history with trend charts and CSV export
-│   │   ├── settings/       # Webhook config (Discord/Slack), auth providers
-│   │   ├── snipe/          # Tool hub — categorized tool navigation
+│   ├── (app)/              # everything here requires auth
+│   │   ├── dashboard/      # KPIs, scan trends, recent alerts
+│   │   ├── assets/         # monitored asset management + detail view
+│   │   ├── alerts/         # alert feed, severity filter, dismiss
+│   │   ├── history/        # scan history + CSV export
+│   │   ├── settings/       # Discord/Slack webhooks, auth providers
+│   │   ├── snipe/          # tool hub
 │   │   ├── lookup/         # IP reputation (AbuseIPDB)
-│   │   ├── domain/         # VirusTotal domain/URL scan
+│   │   ├── domain/         # VirusTotal scan
 │   │   ├── blacklist/      # DNSBL check
-│   │   ├── ports/          # TCP port scanner
-│   │   ├── dns/            # Full DNS record inspection
-│   │   ├── ssl/            # TLS certificate analysis
-│   │   ├── whois/          # WHOIS / registration records
-│   │   ├── email-security/ # SPF / DKIM / DMARC validation
-│   │   └── server-status/  # HTTP health and latency check
-│   ├── api/                # Route handlers — external API calls proxied here
+│   │   ├── ports/          # port scanner
+│   │   ├── dns/            # DNS records
+│   │   ├── ssl/            # TLS cert analysis
+│   │   ├── whois/          # WHOIS
+│   │   ├── email-security/ # SPF/DKIM/DMARC
+│   │   └── server-status/  # HTTP health check
+│   ├── api/                # route handlers — API keys live here
 │   ├── login/
 │   └── register/
 └── lib/
-    ├── supabase/           # SSR-safe client, server, and service-role helpers
-    ├── notify.ts           # Discord + Slack webhook alert delivery
-    ├── ratelimit.ts        # Per-user rate limiting via Upstash Redis
-    ├── ssl.ts              # X.509 certificate parsing (node-forge)
-    └── csv.ts              # CSV export with formula injection prevention
+    ├── supabase/           # client, server, and service role helpers
+    ├── notify.ts           # Discord + Slack webhook delivery
+    ├── ratelimit.ts        # Upstash Redis rate limiting
+    ├── ssl.ts              # cert parsing
+    └── csv.ts              # safe CSV export
 ```
 
 ---
 
-## What building this taught me
+## What I actually learned building this
 
-**Threat scoring isn't binary.** AbuseIPDB returns a confidence score weighted by report recency, volume, and reporter reputation — not a clean yes/no. Setting meaningful thresholds required understanding how the score degrades over time and what report counts actually indicate malicious vs misconfigured behaviour.
+The biggest surprise was how much nuance there is in things that look simple.
 
-**DNSBL lookups work through reverse DNS.** A blacklist check isn't just an API call — it works by reversing the IP octets and querying a known zone (`1.0.168.192.zen.spamhaus.org`). Understanding the lookup format required reading RFC 5782 and the Spamhaus zone documentation, which made the implementation significantly less opaque.
+AbuseIPDB's confidence score is weighted by report recency, volume, and how reliable the reporter is. It's not a vote count — an IP with 2 recent reports from trusted reporters might score higher than one with 50 old reports from throwaway accounts. Getting the thresholds right meant actually reading the documentation on how the score decays.
 
-**SPF `~all` is almost useless.** Implementing DMARC/SPF validation revealed a common misconfiguration: most mail servers treat `~all` (softfail) as a pass, so a domain using it gets little spoofing protection. The distinction between `~all`, `-all`, and `+all` is two characters in a DNS record but the difference in enforcement is significant. ThreatSnipe flags softfail as a misconfiguration, not a pass.
+The SPF softfail thing caught me off guard. `~all` looks like it should do something but most receiving mail servers treat it the same as a pass. The difference between `~all` and `-all` is two characters in a DNS record, but it's the difference between actually rejecting spoofed mail and doing nothing about it.
 
-**User-supplied URLs are an attack surface.** The notification webhook feature accepts a URL and makes a server-side HTTP request to it — a textbook SSRF scenario. Mitigating it required validating that the URL is HTTPS and that the hostname resolves to a known service (discord.com, hooks.slack.com) before the request is made.
+DNSBL lookups aren't just an API call — they work through reverse DNS. You flip the octets, append the zone, and query it as a DNS record. Understanding why the format works that way (RFC 5782) made the implementation make a lot more sense instead of just following examples.
 
-**RLS policies compose across joins in non-obvious ways.** When both `assets` and `asset_results` have `user_id = auth.uid()` policies, a join applies both policies independently. A query can silently return zero rows even when matching data exists if the join doesn't satisfy both policies. Debugging this required understanding how Postgres evaluates RLS on each table in a join, which changed how several asset + alert queries were structured.
+The SSRF thing I almost missed entirely. If your server makes HTTP requests to URLs that users provide, that's SSRF by definition. It's textbook OWASP and I caught it while building the webhook feature — not after.
+
+RLS across joins took the longest to debug. When two tables both have `user_id = auth.uid()` policies and you join them, Postgres applies both policies independently. You can get zero rows back when rows definitely exist and get no error — just silence. Understanding that changed how I wrote several of the asset and alert queries.
 
 ---
 
-> For local setup, environment variables, OAuth config, and cron setup — see [SETUP.md](SETUP.md).
+> Local setup, environment variables, SQL migrations, and pg_cron config → [SETUP.md](SETUP.md)
 
 ---
 
 <div align="center">
   <sub>
-    Built by <a href="https://github.com/Jayden-j">Jayden Johnson</a>
-    &nbsp;·&nbsp;
-    Seeking cybersecurity internship opportunities
+    Built by <a href="https://github.com/Jayden-j">Jayden Johnson</a> · Seeking cybersecurity internship opportunities
   </sub>
 </div>

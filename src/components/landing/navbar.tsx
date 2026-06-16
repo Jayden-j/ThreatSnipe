@@ -36,7 +36,7 @@ export function LandingNavbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group" aria-label="ThreatSnipe home">
             <img
-              src="/ThreatSnipe logo.svg"
+              src="/ThreatSnipe logo.jpg"
               alt="ThreatSnipe logo"
               width={32}
               height={32}

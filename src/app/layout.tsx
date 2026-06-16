@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "ThreatSnipe — Threat Intelligence Platform",
   description: "Monitor IPs, domains, and CIDR ranges with real-time threat intelligence aggregated from AbuseIPDB, VirusTotal, and DNSBL providers.",
-  icons: { icon: "/ThreatSnipe logo.svg" },
+  icons: { icon: "/ThreatSnipe logo.jpg" },
 };
 
 export default function RootLayout({

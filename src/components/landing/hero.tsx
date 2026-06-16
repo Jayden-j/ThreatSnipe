@@ -343,31 +343,31 @@ function DashboardPreview() {
           <div className="rounded-lg px-3 py-1.5 text-[10px] font-medium" style={{ background: "rgba(99,102,241,0.9)", color: "white" }}>Scan</div>
         </div>
 
-        {/* KPI cards — 6 across */}
-        <div className="grid grid-cols-6 gap-1.5">
+        {/* KPI cards — 3 cols on mobile, 6 on sm+ */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
           {[
             { label: "Total Scans", value: "247", color: "#818cf8", iconBg: "rgba(99,102,241,0.15)", iconBorder: "rgba(99,102,241,0.3)" },
             { label: "Assets",      value: "12",  color: "#818cf8", iconBg: "rgba(99,102,241,0.15)", iconBorder: "rgba(99,102,241,0.3)" },
             { label: "Ports",       value: "31",  color: "#818cf8", iconBg: "rgba(99,102,241,0.15)", iconBorder: "rgba(99,102,241,0.3)" },
-            { label: "Threats",     value: "3",   color: C.red,    iconBg: C.redBg, iconBorder: C.redBorder, trend: "↑ +1 this week" },
+            { label: "Threats",     value: "3",   color: C.red,    iconBg: C.redBg, iconBorder: C.redBorder, trend: "↑ +1" },
             { label: "Clean",       value: "211", color: C.green,  iconBg: C.greenBg, iconBorder: C.greenBorder },
             { label: "Alerts",      value: "2",   color: C.red,    iconBg: C.redBg, iconBorder: C.redBorder },
           ].map((card) => (
-            <div key={card.label} className="rounded-lg p-2 flex items-center gap-1.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-              <div className="h-6 w-6 rounded-md shrink-0 flex items-center justify-center" style={{ background: card.iconBg, border: `1px solid ${card.iconBorder}` }}>
-                <Shield className="h-3 w-3" style={{ color: card.color }} />
+            <div key={card.label} className="rounded-lg p-1.5 sm:p-2 flex items-center gap-1.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-md shrink-0 flex items-center justify-center" style={{ background: card.iconBg, border: `1px solid ${card.iconBorder}` }}>
+                <Shield className="h-2.5 w-2.5 sm:h-3 sm:w-3" style={{ color: card.color }} />
               </div>
               <div className="min-w-0">
                 <p className="font-bold leading-none text-[11px]" style={{ color: card.color }}>{card.value}</p>
-                {card.trend && <p className="text-[8px] leading-none mt-0.5" style={{ color: C.amber }}>{card.trend}</p>}
-                <p className="text-[8px] leading-none mt-0.5 truncate" style={{ color: C.muted }}>{card.label}</p>
+                {card.trend && <p className="text-[7px] leading-none mt-0.5" style={{ color: C.amber }}>{card.trend}</p>}
+                <p className="text-[7px] sm:text-[8px] leading-none mt-0.5 truncate" style={{ color: C.muted }}>{card.label}</p>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Main grid: 5+3 columns */}
-        <div className="grid gap-2" style={{ gridTemplateColumns: "5fr 3fr" }}>
+        {/* Main grid: stacks on mobile, 5+3 on sm+ */}
+        <div className="grid gap-2 grid-cols-1 sm:grid-cols-[5fr_3fr]">
 
           {/* Left col */}
           <div className="flex flex-col gap-2">
@@ -479,7 +479,7 @@ function DashboardPreview() {
         {/* Tool launcher */}
         <div className="rounded-lg p-2.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
           <p className="text-[10px] font-semibold mb-2" style={{ color: C.text }}>Quick Launch</p>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
             {[
               { name: "Abuse Checker",  desc: "IP reputation" },
               { name: "VirusTotal",     desc: "Malware scan" },

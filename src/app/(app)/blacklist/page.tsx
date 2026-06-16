@@ -126,6 +126,7 @@ function IpDomainForm() {
           }
           const data: BlacklistResponse = await r.json();
           setResult(data);
+          void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "blacklist", target: q, result: data }) }).catch(() => {});
         })
         .catch((err) => setError(err instanceof Error ? err.message : "An unexpected error occurred"))
         .finally(() => setLoading(false));
@@ -161,6 +162,7 @@ function IpDomainForm() {
 
       const data: BlacklistResponse = await response.json();
       setResult(data);
+      void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "blacklist", target: trimmed, result: data }) }).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"

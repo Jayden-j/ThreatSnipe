@@ -44,6 +44,7 @@ function LookupForm() {
           }
           const data: LookupResult = await response.json();
           setResult(data);
+          void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "ip_lookup", target: ip, result: data }) }).catch(() => {});
         })
         .catch((err) => {
           setError(
@@ -81,6 +82,7 @@ function LookupForm() {
 
       const data: LookupResult = await response.json();
       setResult(data);
+      void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "ip_lookup", target: trimmedIp, result: data }) }).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"

@@ -537,8 +537,8 @@ function AddAssetDialog({
       checks_enabled: checks,
       monitoring_enabled: true,
       check_interval: checkInterval,
-      alerts_enabled: false,
-      alert_severities: [],
+      alerts_enabled: true,
+      alert_severities: ["critical", "high", "medium", "low"],
       alert_channels: [],
     };
     try {

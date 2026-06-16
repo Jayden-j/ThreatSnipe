@@ -64,6 +64,7 @@ function SslForm() {
           }
           const data: SslResult = await r.json();
           setResult(data);
+          void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "ssl", target: q, result: data }) }).catch(() => {});
         })
         .catch((err) => setError(err instanceof Error ? err.message : "An unexpected error occurred"))
         .finally(() => setLoading(false));
@@ -95,6 +96,7 @@ function SslForm() {
 
       const data: SslResult = await response.json();
       setResult(data);
+      void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "ssl", target: trimmed, result: data }) }).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"

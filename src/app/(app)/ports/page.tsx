@@ -134,6 +134,7 @@ function PortForm() {
           }
           const data: PortScanResult = await response.json();
           setResult(data);
+          void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "port_scan", target: target, result: data }) }).catch(() => {});
         })
         .catch((err) => {
           setError(
@@ -171,6 +172,7 @@ function PortForm() {
 
       const data: PortScanResult = await response.json();
       setResult(data);
+      void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "port_scan", target: trimmedTarget, result: data }) }).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"

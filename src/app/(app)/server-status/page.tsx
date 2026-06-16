@@ -219,6 +219,7 @@ function ServerStatusForm() {
 
       const data: ServerStatusResult = await response.json();
       setResult(data);
+      void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "server_status", target: host, result: data }) }).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"
@@ -242,6 +243,7 @@ function ServerStatusForm() {
           }
           const data: ServerStatusResult = await r.json();
           setResult(data);
+          void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "server_status", target: q, result: data }) }).catch(() => {});
         })
         .catch((err) => setError(err instanceof Error ? err.message : "An unexpected error occurred"))
         .finally(() => setLoading(false));

@@ -92,6 +92,7 @@ function DomainForm() {
           }
           const data: DomainResult = await response.json();
           setResult(data);
+          void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "domain_lookup", target: domain, result: data }) }).catch(() => {});
         })
         .catch((err) => {
           setError(
@@ -136,6 +137,7 @@ function DomainForm() {
 
       const data: DomainResult = await response.json();
       setResult(data);
+      void fetch("/api/alerts/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_type: "domain_lookup", target: trimmedDomain, result: data }) }).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"

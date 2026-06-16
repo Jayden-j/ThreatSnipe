@@ -23,7 +23,7 @@ export default function AppLayout({
   const pathname = usePathname();
 
   return (
-    <div className="bg-background text-foreground">
+    <div className="bg-background text-foreground" style={{ zoom: 1.1 }}>
       {/* Dot grid overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-0"

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Shield } from "lucide-react";
 
 const LINKS = [
   { label: "Features", href: "#features" },
@@ -21,15 +20,14 @@ export function LandingFooter() {
           {/* Logo + tagline */}
           <div className="flex flex-col gap-3">
             <Link href="/" className="flex items-center gap-2.5 group" aria-label="ThreatSnipe home">
-              <div
-                className="h-8 w-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]"
-                style={{
-                  background: "rgba(99,102,241,0.15)",
-                  border: "1px solid rgba(99,102,241,0.35)",
-                }}
-              >
-                <Shield className="h-4 w-4 text-indigo-400" strokeWidth={2} />
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/ThreatSnipe logo.jpg"
+                alt="ThreatSnipe logo"
+                width={36}
+                height={36}
+                className="h-9 w-9 object-contain transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.7)]"
+              />
               <span className="font-semibold text-white tracking-tight text-[15px] font-body">
                 ThreatSnipe
               </span>

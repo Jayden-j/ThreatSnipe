@@ -9,6 +9,11 @@
     <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white" />
     <img src="https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
   </p>
+  <p>
+    <img src="https://img.shields.io/github/last-commit/Jayden-j/ThreatSnipe?style=flat-square&color=6366f1" />
+    <img src="https://img.shields.io/github/stars/Jayden-j/ThreatSnipe?style=flat-square&color=6366f1" />
+    <img src="https://img.shields.io/badge/license-MIT-6366f1?style=flat-square" />
+  </p>
 
   <a href="https://threatsnipe.vercel.app">
     <img src="https://img.shields.io/badge/Live_Demo-%E2%86%92-6366f1?style=for-the-badge" />
@@ -118,36 +123,39 @@ A few things I was deliberate about when building this:
 
 ---
 
-## Folder structure
+## How it's structured
 
-```
-src/
-├── app/
-│   ├── (app)/              # everything here requires auth
-│   │   ├── dashboard/      # KPIs, scan trends, recent alerts
-│   │   ├── assets/         # monitored asset management + detail view
-│   │   ├── alerts/         # alert feed, severity filter, dismiss
-│   │   ├── history/        # scan history + CSV export
-│   │   ├── settings/       # Discord/Slack webhooks, auth providers
-│   │   ├── snipe/          # tool hub
-│   │   ├── lookup/         # IP reputation (AbuseIPDB)
-│   │   ├── domain/         # VirusTotal scan
-│   │   ├── blacklist/      # DNSBL check
-│   │   ├── ports/          # port scanner
-│   │   ├── dns/            # DNS records
-│   │   ├── ssl/            # TLS cert analysis
-│   │   ├── whois/          # WHOIS
-│   │   ├── email-security/ # SPF/DKIM/DMARC
-│   │   └── server-status/  # HTTP health check
-│   ├── api/                # route handlers — API keys live here
-│   ├── login/
-│   └── register/
-└── lib/
-    ├── supabase/           # client, server, and service role helpers
-    ├── notify.ts           # Discord + Slack webhook delivery
-    ├── ratelimit.ts        # Upstash Redis rate limiting
-    ├── ssl.ts              # cert parsing
-    └── csv.ts              # safe CSV export
+```mermaid
+graph TD
+    User["👤 User"] --> Auth["Login / Register"]
+    Auth --> App["Protected App"]
+
+    App --> Dashboard["📊 Dashboard\nKPIs · trends · alerts"]
+    App --> Assets["🎯 Asset Monitor\nadd · schedule · alert"]
+    App --> Snipe["🔧 Tool Hub"]
+    App --> Alerts["🔔 Alert Feed"]
+    App --> History["📋 History + CSV Export"]
+    App --> Settings["⚙️ Settings\nDiscord · Slack webhooks"]
+
+    Snipe --> Lookup["IP Reputation"]
+    Snipe --> Domain["VirusTotal"]
+    Snipe --> Blacklist["DNSBL Check"]
+    Snipe --> Ports["Port Scanner"]
+    Snipe --> DNS["DNS Records"]
+    Snipe --> SSL["SSL Checker"]
+    Snipe --> WHOIS["WHOIS"]
+    Snipe --> Email["Email Security"]
+    Snipe --> Server["Server Status"]
+
+    Assets --> Cron["pg_cron\n(Supabase)"]
+    Cron --> API["Next.js Route Handlers\n/api/*"]
+    API --> AbuseIPDB["AbuseIPDB"]
+    API --> VirusTotal["VirusTotal"]
+    API --> Public["Public DNS / Net"]
+
+    API --> DB[("Supabase\nPostgres + RLS")]
+    DB --> Realtime["Realtime alerts"]
+    DB --> Redis["Upstash Redis\nrate limiting"]
 ```
 
 ---

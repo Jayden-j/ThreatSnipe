@@ -121,7 +121,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/ThreatSnipe%20logo.svg" alt="" width={28} height={28} aria-hidden="true" />
+          <img src="/ThreatSnipe%20logo.jpg" alt="" width={40} height={40} aria-hidden="true" />
           <span className="text-sm font-semibold tracking-wide" style={{ color: "oklch(0.97 0 0)" }}>
             ThreatSnipe
           </span>
@@ -189,7 +189,7 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <motion.div {...fadeUp(0)} className="flex items-center gap-2 mb-8 lg:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/ThreatSnipe%20logo.svg" alt="" width={26} height={26} aria-hidden="true" />
+            <img src="/ThreatSnipe%20logo.jpg" alt="" width={36} height={36} aria-hidden="true" />
             <span className="text-sm font-semibold" style={{ color: "oklch(0.97 0 0)" }}>ThreatSnipe</span>
           </motion.div>
 

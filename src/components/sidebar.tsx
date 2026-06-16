@@ -87,7 +87,7 @@ export function Sidebar({
         {/* Branding */}
         <div className="flex items-center gap-2 border-b border-border px-6 h-14">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/ThreatSnipe%20logo.svg" alt="ThreatSnipe" width={28} height={28} className="rounded-sm" />
+          <img src="/ThreatSnipe%20logo.jpg" alt="ThreatSnipe" width={40} height={40} className="rounded-sm" />
           <span className="text-lg font-bold tracking-tight text-foreground">
             ThreatSnipe
           </span>

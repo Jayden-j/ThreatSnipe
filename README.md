@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/ThreatSnipe logo.jpg" alt="ThreatSnipe" width="56" />
+  <img src="public/ThreatSnipe logo.jpg" alt="ThreatSnipe" width="80" />
   <h1>ThreatSnipe</h1>
   <p>Monitor your assets. Get alerted when something changes.</p>
 

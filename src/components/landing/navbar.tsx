@@ -38,10 +38,9 @@ export function LandingNavbar() {
             <img
               src="/ThreatSnipe logo.jpg"
               alt="ThreatSnipe logo"
-              width={32}
-              height={32}
-              className="h-8 w-8 object-contain transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.7)]"
-              style={{ filter: "brightness(0) invert(1)" }}
+              width={48}
+              height={48}
+              className="h-12 w-12 object-contain transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(99,102,241,0.7)]"
             />
             <span className="font-semibold text-white tracking-tight text-[15px] font-body">
               ThreatSnipe
